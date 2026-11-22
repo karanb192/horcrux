@@ -9,16 +9,17 @@ const W = 1600
 const H = 1000
 
 // Where a drop of ink lands when you write: the margins, never the middle where the words sit or the foot where
-// the message box sits. Left drops are drawn in the left group, right drops in the right group.
+// the message box sits. Left drops are drawn in the left group, right drops in the right group. Every drop sits
+// between y=340 and y=660, which a window as wide as 3.5:1 still shows whole.
 const BLOOM_SPOTS: readonly (readonly ['left' | 'right', number, number])[] = [
-  ['left', 96, 300],
-  ['right', 1512, 420],
+  ['left', 96, 380],
+  ['right', 1512, 470],
   ['left', 120, 560],
-  ['right', 1488, 250],
-  ['left', 84, 700],
-  ['right', 1530, 640],
-  ['left', 132, 180],
-  ['right', 1500, 760],
+  ['right', 1488, 360],
+  ['left', 84, 640],
+  ['right', 1530, 620],
+  ['left', 132, 450],
+  ['right', 1500, 540],
 ]
 
 export const BLOOM_COUNT = BLOOM_SPOTS.length
@@ -174,15 +175,17 @@ export function scene(bloomIndex?: number): string {
   ].join('')
 }
 
-/** The x range a window of this width-over-height ratio shows, in the scene's units. */
-export function visibleRange(aspect: number): readonly [number, number] {
+/** The box a window of this width-over-height ratio shows, in the scene's units: [left, top, right, bottom]. */
+export function visibleBox(aspect: number): readonly [number, number, number, number] {
   if (aspect >= W / H) {
-    return [0, W]
+    const half = W / aspect / 2
+
+    return [0, H / 2 - half, W, H / 2 + half]
   }
 
   const half = (H * aspect) / 2
 
-  return [W / 2 - half, W / 2 + half]
+  return [W / 2 - half, 0, W / 2 + half, H]
 }
 
 /** How far the edge groups slide in at this ratio, by the same steps as the @media rules. */

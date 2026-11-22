@@ -23,10 +23,12 @@ In the **Claude desktop app** (the Code tab):
 
 1. **The page.** An aged, lined diary page behind the conversation, with old ink blots and foxing at the edges. At night it is the same page by candlelight, with a slow flicker.
 2. **The second hand.** Claude's replies and your messages in cursive, each in its own ink: yours blue-black, the diary's brown-black.
-3. **Ink that soaks in.** Each time you write, a drop of ink lands in a margin, spreads and sinks into the paper. It stays in the margins at any window size, square and tall ones included.
+3. **Ink that soaks in.** Each time you write, a drop of ink lands in a margin, spreads and sinks into the paper. The margins slide in with the window, so the ink stays whole from a tall window to a 3.5:1 ultrawide.
 4. **Sound, if you want it.** A quiet room with a candle, a nib touching the page when you send, a quill stroke for each tool call, a page turning when the conversation compacts. Off until you press the speaker in the session's title bar.
 
-In the **terminal**, which draws no themes, the spinner and the line that closes each turn speak the diary's words: "Dipping the quill…", "Writing back…", "Inked for 12s".
+The **Claude mobile app** draws the page and the ink too, under its own veil; the cursive type and the sound are the desktop app's alone.
+
+In the **terminal**, which draws no themes, the spinner and the line that closes each turn speak the diary's words: "Dipping the quill…", "Writing back…", "Inked for 12s". The editor extensions get neither.
 
 Code blocks, diffs, permission prompts and questions keep the app's own look, so nothing you need to read carefully ever turns cursive. Your accessibility settings win over the theme.
 
@@ -35,7 +37,7 @@ Code blocks, diffs, permission prompts and questions keep the app's own look, so
 | Command | What it does |
 |---|---|
 | `/otherhand` | Close the diary if it is open, open it if it is closed |
-| `/otherhand off` | Close the diary: the app's own look comes back, and stays in later sessions |
+| `/otherhand off` | Close the diary: the app's own look comes back, and new sessions stay closed |
 | `/otherhand on` | Open it again |
 
 ## What it can access
@@ -52,8 +54,8 @@ Code blocks, diffs, permission prompts and questions keep the app's own look, so
 
 ## Limits
 
-- The page, the cursive type and the sound need the Claude desktop app. The terminal and the editors draw no themes; there you get the diary's words only.
-- One theme shows at a time. Another mod that sets a theme replaces this one; Otherhand never takes it back, and `/otherhand off` only clears the page when the page is Otherhand's.
+- The cursive type and the sound need the Claude desktop app; the mobile app draws the page and the ink. The terminal gets the diary's words only, and the editor extensions get nothing.
+- One theme shows at a time. Another mod that sets a theme replaces this one, and Otherhand never takes it back. `/otherhand off` clears the theme only while it believes the page is its own, but it can only see themes that draw a moving scene: if you picked a plain-colour theme after Otherhand in the same session, `/otherhand off` clears that one too.
 - `/otherhand` typed while Claude is working runs when the turn ends.
 - Fonts are the system's generic cursive font. The theme API takes generic families only, so the handwriting looks different on different machines.
 - If you ask your system for reduced motion, the page holds still and the ink does not bloom.

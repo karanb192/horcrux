@@ -2,7 +2,7 @@ import { describe, expect, mock, test } from 'claude-code/testing'
 import type { CommandRunInput, On, RenderElement, SessionStartInput, ThemeSetArgs } from 'claude-code'
 
 import { WRITING, WRITTEN, pick } from '../hooks/register'
-import { BLOOM_COUNT, bloomSpots, edgeShift, scene, visibleRange } from '../hooks/scene'
+import { BLOOM_COUNT, bloomSpots, edgeShift, scene, visibleBox } from '../hooks/scene'
 
 const start: SessionStartInput = { surface: 'desktop', isInteractive: true, cwd: '/work' }
 const run = (args: string): CommandRunInput => ({
@@ -11,6 +11,9 @@ const run = (args: string): CommandRunInput => ({
   origin: { kind: 'composer' },
   presentation: { isFullscreen: false, columns: 80 },
 })
+// The test environment has timers, but this project's tsconfig loads no DOM or Node types.
+declare const setTimeout: (fn: () => void, ms: number) => unknown
+
 const page = { scene: 'page', plugin: 'otherhand', glass: { blur: 10, opacity: 0.6 } } as const
 const spinner = { word: 'Sauteing', message: null, suffix: '…', mode: 'responding' } as const
 const BLANK: RenderElement = { type: 'Box', props: {}, children: [] } as unknown as RenderElement
@@ -110,16 +113,18 @@ describe('the look', () => {
     expect(sets).toHaveLength(2)
   })
 
-  test('closing twice clears nothing the second time', async ($, on) => {
+  test('closing twice clears nothing the second time, and still saves off', async ($, on) => {
     const sets: ThemeSetArgs[] = []
     const stubs = engine(on, sets)
 
     await $.session.start(start)
     await $.command.run(run('off'))
+    stubs.store.set('off', false)
     const again = await $.command.run(run('off'))
 
-    expect(again.text).toContain('already closed')
+    expect(again.text).toContain('stays closed')
     expect(stubs.clears()).toBe(1)
+    expect(stubs.store.get('off')).toBe(true)
   })
 
   test("closing never clears a theme another plugin set", async ($, on) => {
@@ -154,22 +159,32 @@ describe('the ink', () => {
     engine(on, sets)
     await $.session.start(start)
 
-    const before = JSON.stringify(await (await $.ui.mount({ plugin: 'otherhand', surface: 'desktop', component: 'Backdrop', props: page })).drawn())
+    const ui = await $.ui.mount({ plugin: 'otherhand', surface: 'desktop', component: 'Backdrop', props: page })
 
-    expect(before).not.toContain('class=\\"bloom\\"')
+    expect(JSON.stringify(await ui.drawn())).not.toContain('class=\\"bloom\\"')
 
     await $.turn.start({ text: 'hello', turnId: 't1' })
 
-    const during = JSON.stringify(await (await $.ui.mount({ plugin: 'otherhand', surface: 'desktop', component: 'Backdrop', props: page })).drawn())
-
-    expect(during).toContain('class=\\"bloom\\"')
+    expect(JSON.stringify(await ui.drawn())).toContain('class=\\"bloom\\"')
     expect(sets).toHaveLength(1)
 
     await clock.advance(4000)
 
-    const after = JSON.stringify(await (await $.ui.mount({ plugin: 'otherhand', surface: 'desktop', component: 'Backdrop', props: page })).drawn())
+    expect(JSON.stringify(await ui.drawn())).not.toContain('class=\\"bloom\\"')
+  })
 
-    expect(after).not.toContain('class=\\"bloom\\"')
+  test('no ink, and no redraws, where no window has drawn the page', async ($, on) => {
+    const sets: ThemeSetArgs[] = []
+    const clock = mock.clock(on)
+
+    engine(on, sets)
+    await $.session.start({ ...start, surface: 'terminal' })
+    await $.turn.start({ text: 'hello', turnId: 't1' })
+    await clock.advance(4000)
+
+    const ui = await $.ui.mount({ plugin: 'otherhand', surface: 'desktop', component: 'Backdrop', props: page })
+
+    expect(JSON.stringify(await ui.drawn())).not.toContain('class=\\"bloom\\"')
   })
 
   test("a subagent's turn draws no ink", async ($, on) => {
@@ -178,11 +193,12 @@ describe('the ink', () => {
     mock.clock(on)
     engine(on, sets)
     await $.session.start(start)
+
+    const ui = await $.ui.mount({ plugin: 'otherhand', surface: 'desktop', component: 'Backdrop', props: page })
+
     await $.turn.start({ text: 'look around', turnId: 't2', agentId: 'sub1' })
 
-    const drawn = JSON.stringify(await (await $.ui.mount({ plugin: 'otherhand', surface: 'desktop', component: 'Backdrop', props: page })).drawn())
-
-    expect(drawn).not.toContain('class=\\"bloom\\"')
+    expect(JSON.stringify(await ui.drawn())).not.toContain('class=\\"bloom\\"')
   })
 
   test("another plugin's backdrop passes through untouched", async ($, on) => {
@@ -203,32 +219,36 @@ describe('the ink', () => {
 })
 
 describe('the terminal', () => {
-  test('the spinner and the turn line speak the diary, and go back when it closes', async ($, on) => {
+  test('the spinner and the turn line speak the diary, and the same rows go back when it closes', async ($, on) => {
     const sets: ThemeSetArgs[] = []
     const words: string[] = []
 
     engine(on, sets)
     on('ui.render', { component: 'Spinner' }, ($, e) => {
-      words.push(e.props.word)
+      words.push(`spin:${e.props.word}`)
 
       return BLANK
     })
     on('ui.render', { component: 'TurnDuration' }, ($, e) => {
-      words.push(e.props.word)
+      words.push(`turn:${e.props.word}`)
 
       return BLANK
     })
     await $.session.start({ ...start, surface: 'terminal' })
-    await $.ui.mount({ plugin: 'otherhand', surface: 'terminal', component: 'Spinner', props: spinner })
-    await $.ui.mount({ plugin: 'otherhand', surface: 'terminal', component: 'TurnDuration', props: { word: 'Baked', durationMs: 3000 } })
+    const spin = await $.ui.mount({ plugin: 'otherhand', surface: 'terminal', component: 'Spinner', props: spinner })
+    const line = await $.ui.mount({ plugin: 'otherhand', surface: 'terminal', component: 'TurnDuration', props: { word: 'Baked', durationMs: 3000 } })
 
-    expect(WRITING).toContain(words[0] as (typeof WRITING)[number])
-    expect(WRITTEN).toContain(words[1] as (typeof WRITTEN)[number])
+    expect(WRITING).toContain(words[0]?.slice(5) as (typeof WRITING)[number])
+    expect(WRITTEN).toContain(words[1]?.slice(5) as (typeof WRITTEN)[number])
 
     await $.command.run(run('off'))
-    await $.ui.mount({ plugin: 'otherhand', surface: 'terminal', component: 'Spinner', props: spinner })
+    await spin.drawn()
+    await line.drawn()
+    await new Promise<void>(resolve => setTimeout(() => resolve(), 150))
+    await spin.drawn()
 
-    expect(words[2]).toBe('Sauteing')
+    expect(words).toContain('spin:Sauteing')
+    expect(words).toContain('turn:Baked')
   })
 })
 
@@ -242,16 +262,18 @@ describe('the scene', () => {
     }
   })
 
-  test('every drop stays on screen from a tall window to a wide one', () => {
-    for (const aspect of [0.5, 0.62, 0.75, 1, 1.2, 1.33, 1.5, 1.6, 2, 2.4]) {
-      const [left, right] = visibleRange(aspect)
+  test('every drop stays whole on screen from a 1:2 window to a 3.5:1 one', () => {
+    for (const aspect of [0.5, 0.62, 0.75, 1, 1.2, 1.33, 1.5, 1.6, 2, 2.4, 3, 3.5]) {
+      const [left, top, right, bottom] = visibleBox(aspect)
       const shift = edgeShift(aspect)
 
-      for (const [side, x] of bloomSpots()) {
+      for (const [side, x, y] of bloomSpots()) {
         const drawnAt = side === 'left' ? x + shift : x - shift
 
         expect(drawnAt - 64).toBeGreaterThanOrEqual(left)
         expect(drawnAt + 64).toBeLessThanOrEqual(right)
+        expect(y - 64).toBeGreaterThanOrEqual(top)
+        expect(y + 64).toBeLessThanOrEqual(bottom)
       }
     }
   })

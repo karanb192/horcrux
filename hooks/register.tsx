@@ -32,9 +32,13 @@ let takes: 'all' | 'style' | 'colors' | undefined
 // Whether the diary is closed in this session. Undefined until read from the store or set by the command.
 let off: boolean | undefined
 
-// Whether the theme standing is this mod's. False once a backdrop drawn for another plugin is seen, so closing
-// the diary never clears a theme someone else chose.
+// Whether the theme standing is this mod's, as far as it can tell. False once a backdrop drawn for another
+// plugin is seen. A theme with no moving scene raises no Backdrop render, so it stays unseen: see the README.
 let ours = false
+
+// Whether a window has drawn this mod's page. Ink is only worth drawing where someone can see it; a desktop window
+// that attaches later draws the page first and so turns this on.
+let seen = false
 
 // The drop of ink soaking in now, by its spot, and the timer that dries it.
 let bloom: number | undefined
@@ -143,11 +147,7 @@ async function command($: EngineInterface, args: string): Promise<string> {
   }
 
   if (wantOff) {
-    if (closed) {
-      return 'The diary is already closed. /otherhand opens it.'
-    }
-
-    if (ours) {
+    if (!closed && ours) {
       await $.theme.clear()
     }
 
@@ -155,15 +155,18 @@ async function command($: EngineInterface, args: string): Promise<string> {
     drying?.cancel()
     bloom = undefined
     off = true
+    // Saved even when nothing showed: an explicit off is also the default for new sessions.
     await $.store.set(OFF_KEY, true)
+    $.ui.invalidate('ui.render')
 
-    return 'The diary closes. /otherhand opens it again.'
+    return closed ? 'The diary stays closed, in new sessions too.' : 'The diary closes. /otherhand opens it again.'
   }
 
   const set = await open($)
 
   off = false
   await $.store.set(OFF_KEY, false)
+  $.ui.invalidate('ui.render')
 
   return set.isDrawn
     ? 'The diary is open. Write something.'
@@ -199,7 +202,7 @@ export const register: Register = on => {
 
   // The main conversation's turns only: a subagent starting its own turn is not you writing.
   on('turn.start', async ($, e, next) => {
-    if (e.agentId === undefined && off !== true && ours) {
+    if (e.agentId === undefined && off !== true && ours && seen) {
       startBloom($)
     }
 
@@ -222,6 +225,8 @@ export const register: Register = on => {
     if ((e.surface !== 'desktop' && e.surface !== 'mobile') || e.props.scene !== PAGE) {
       return next(e)
     }
+
+    seen = true
 
     const { Svg } = $.ui.resolve(e)
 
