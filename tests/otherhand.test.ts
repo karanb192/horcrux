@@ -1,8 +1,8 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
-import type { CommandRunInput, On, SessionStartInput, ThemeSetArgs } from 'claude-code'
+import type { CommandRunInput, On, RenderElement, SessionStartInput, ThemeSetArgs } from 'claude-code'
 
-import { WRITING, bloomOf, pick } from '../hooks/register'
-import { BLOOM_COUNT, scene } from '../hooks/scene'
+import { WRITING, WRITTEN, pick } from '../hooks/register'
+import { BLOOM_COUNT, bloomSpots, edgeShift, scene, visibleRange } from '../hooks/scene'
 
 const start: SessionStartInput = { surface: 'desktop', isInteractive: true, cwd: '/work' }
 const run = (args: string): CommandRunInput => ({
@@ -11,9 +11,12 @@ const run = (args: string): CommandRunInput => ({
   origin: { kind: 'composer' },
   presentation: { isFullscreen: false, columns: 80 },
 })
+const page = { scene: 'page', plugin: 'otherhand', glass: { blur: 10, opacity: 0.6 } } as const
+const spinner = { word: 'Sauteing', message: null, suffix: '…', mode: 'responding' } as const
+const BLANK: RenderElement = { type: 'Box', props: {}, children: [] } as unknown as RenderElement
 
-/** Stubs every call the mod makes; `drawn` says whether a window draws the look. */
-function engine(on: On, sets: ThemeSetArgs[], drawn = true, refuse?: (args: ThemeSetArgs) => boolean) {
+/** Stubs every call the mod makes. `refuse` answers a set the way a build that lacks an attribute does. */
+function engine(on: On, sets: ThemeSetArgs[], refuse?: (args: ThemeSetArgs) => string | undefined) {
   const store = new Map<string, unknown>()
   let clears = 0
 
@@ -26,13 +29,15 @@ function engine(on: On, sets: ThemeSetArgs[], drawn = true, refuse?: (args: Them
     return { value: undefined }
   })
   on('theme.set', ($, e) => {
-    if (refuse?.(e)) {
-      return { deny: 'theme.set does not know the attribute "sound"' }
+    const refusal = refuse?.(e)
+
+    if (refusal !== undefined) {
+      return { deny: refusal }
     }
 
     sets.push(e)
 
-    return { value: drawn ? { isDrawn: true, requestId: 'theme' } : { isDrawn: false, requestId: 'theme', reason: 'no window draws themes' } }
+    return { value: { isDrawn: true, requestId: 'theme' } }
   })
   on('theme.clear', () => {
     clears += 1
@@ -46,7 +51,7 @@ function engine(on: On, sets: ThemeSetArgs[], drawn = true, refuse?: (args: Them
 }
 
 describe('the look', () => {
-  test('session start sets the page with cursive type and sound', async ($, on) => {
+  test('session start sets the page with cursive type and sound, once', async ($, on) => {
     const sets: ThemeSetArgs[] = []
 
     engine(on, sets)
@@ -58,10 +63,10 @@ describe('the look', () => {
     expect(sets[0]?.sound?.cues?.send).toBeDefined()
   })
 
-  test('a build that refuses sound still gets the page and the type', async ($, on) => {
+  test('a build that does not know sound still gets the page and the type', async ($, on) => {
     const sets: ThemeSetArgs[] = []
 
-    engine(on, sets, true, args => args.sound !== undefined)
+    engine(on, sets, args => (args.sound !== undefined ? 'theme.set does not know the attribute "sound"' : undefined))
     await $.session.start(start)
 
     expect(sets).toHaveLength(1)
@@ -69,7 +74,22 @@ describe('the look', () => {
     expect(sets[0]?.style?.Text?.fontFamily).toEqual(['cursive'])
   })
 
-  test('/otherhand off closes the diary and keeps it closed next session', async ($, on) => {
+  test('a passing failure does not strip the sound for the rest of the load', async ($, on) => {
+    const sets: ThemeSetArgs[] = []
+    let failures = 1
+
+    engine(on, sets, () => (failures-- > 0 ? 'the app went away for a moment' : undefined))
+    await $.session.start(start)
+
+    expect(sets).toHaveLength(0)
+
+    await $.command.run(run('on'))
+
+    expect(sets).toHaveLength(1)
+    expect(sets[0]?.sound).toBeDefined()
+  })
+
+  test('/otherhand off closes the diary, says so to you alone, and stays closed next session', async ($, on) => {
     const sets: ThemeSetArgs[] = []
     const stubs = engine(on, sets)
 
@@ -77,6 +97,7 @@ describe('the look', () => {
     const closed = await $.command.run(run('off'))
 
     expect(closed.text).toContain('closes')
+    expect(closed.isTextDisplayOnly).toBe(true)
     expect(stubs.store.get('off')).toBe(true)
     expect(stubs.clears()).toBe(1)
 
@@ -87,6 +108,31 @@ describe('the look', () => {
 
     expect(opened.text).toContain('open')
     expect(sets).toHaveLength(2)
+  })
+
+  test('closing twice clears nothing the second time', async ($, on) => {
+    const sets: ThemeSetArgs[] = []
+    const stubs = engine(on, sets)
+
+    await $.session.start(start)
+    await $.command.run(run('off'))
+    const again = await $.command.run(run('off'))
+
+    expect(again.text).toContain('already closed')
+    expect(stubs.clears()).toBe(1)
+  })
+
+  test("closing never clears a theme another plugin set", async ($, on) => {
+    const sets: ThemeSetArgs[] = []
+    const stubs = engine(on, sets)
+
+    on('ui.render', { component: 'Backdrop' }, () => BLANK)
+    await $.session.start(start)
+    await $.ui.mount({ plugin: 'otherhand', surface: 'desktop', component: 'Backdrop', props: { ...page, plugin: 'lagoon-mod' } })
+    await $.command.run(run('off'))
+
+    expect(stubs.clears()).toBe(0)
+    expect(stubs.store.get('off')).toBe(true)
   })
 
   test('an unknown word gets the usage line and changes nothing', async ($, on) => {
@@ -101,33 +147,88 @@ describe('the look', () => {
 })
 
 describe('the ink', () => {
-  test('writing soaks a drop of ink into the margin, then the page settles', async ($, on) => {
+  test('writing draws a drop of ink on the page without setting the theme again, then it dries', async ($, on) => {
     const sets: ThemeSetArgs[] = []
     const clock = mock.clock(on)
 
     engine(on, sets)
     await $.session.start(start)
+
+    const before = JSON.stringify(await (await $.ui.mount({ plugin: 'otherhand', surface: 'desktop', component: 'Backdrop', props: page })).drawn())
+
+    expect(before).not.toContain('class=\\"bloom\\"')
+
     await $.turn.start({ text: 'hello', turnId: 't1' })
-    await clock.advance(10)
 
-    const bloomed = sets[1]?.backdrop
+    const during = JSON.stringify(await (await $.ui.mount({ plugin: 'otherhand', surface: 'desktop', component: 'Backdrop', props: page })).drawn())
 
-    expect(bloomed && 'scene' in bloomed && bloomed.scene !== undefined ? bloomOf(bloomed.scene) : undefined).toBeDefined()
+    expect(during).toContain('class=\\"bloom\\"')
+    expect(sets).toHaveLength(1)
 
     await clock.advance(4000)
 
-    expect(sets.at(-1)?.backdrop).toMatchObject({ scene: 'page' })
+    const after = JSON.stringify(await (await $.ui.mount({ plugin: 'otherhand', surface: 'desktop', component: 'Backdrop', props: page })).drawn())
+
+    expect(after).not.toContain('class=\\"bloom\\"')
   })
 
-  test('no ink where no window draws the page', async ($, on) => {
+  test("a subagent's turn draws no ink", async ($, on) => {
     const sets: ThemeSetArgs[] = []
 
     mock.clock(on)
-    engine(on, sets, false)
-    await $.session.start({ ...start, surface: 'terminal' })
-    await $.turn.start({ text: 'hello', turnId: 't1' })
+    engine(on, sets)
+    await $.session.start(start)
+    await $.turn.start({ text: 'look around', turnId: 't2', agentId: 'sub1' })
 
-    expect(sets).toHaveLength(1)
+    const drawn = JSON.stringify(await (await $.ui.mount({ plugin: 'otherhand', surface: 'desktop', component: 'Backdrop', props: page })).drawn())
+
+    expect(drawn).not.toContain('class=\\"bloom\\"')
+  })
+
+  test("another plugin's backdrop passes through untouched", async ($, on) => {
+    const sets: ThemeSetArgs[] = []
+    const seen: string[] = []
+
+    engine(on, sets)
+    on('ui.render', { component: 'Backdrop' }, ($, e) => {
+      seen.push(e.props.plugin)
+
+      return BLANK
+    })
+    await $.session.start(start)
+    await $.ui.mount({ plugin: 'otherhand', surface: 'desktop', component: 'Backdrop', props: { ...page, plugin: 'lagoon-mod' } })
+
+    expect(seen).toEqual(['lagoon-mod'])
+  })
+})
+
+describe('the terminal', () => {
+  test('the spinner and the turn line speak the diary, and go back when it closes', async ($, on) => {
+    const sets: ThemeSetArgs[] = []
+    const words: string[] = []
+
+    engine(on, sets)
+    on('ui.render', { component: 'Spinner' }, ($, e) => {
+      words.push(e.props.word)
+
+      return BLANK
+    })
+    on('ui.render', { component: 'TurnDuration' }, ($, e) => {
+      words.push(e.props.word)
+
+      return BLANK
+    })
+    await $.session.start({ ...start, surface: 'terminal' })
+    await $.ui.mount({ plugin: 'otherhand', surface: 'terminal', component: 'Spinner', props: spinner })
+    await $.ui.mount({ plugin: 'otherhand', surface: 'terminal', component: 'TurnDuration', props: { word: 'Baked', durationMs: 3000 } })
+
+    expect(WRITING).toContain(words[0] as (typeof WRITING)[number])
+    expect(WRITTEN).toContain(words[1] as (typeof WRITTEN)[number])
+
+    await $.command.run(run('off'))
+    await $.ui.mount({ plugin: 'otherhand', surface: 'terminal', component: 'Spinner', props: spinner })
+
+    expect(words[2]).toBe('Sauteing')
   })
 })
 
@@ -141,11 +242,18 @@ describe('the scene', () => {
     }
   })
 
-  test('scene names round-trip and strangers are refused', () => {
-    expect(bloomOf('page-ink-3')).toBe(3)
-    expect(bloomOf('page')).toBeUndefined()
-    expect(bloomOf(`page-ink-${BLOOM_COUNT}`)).toBeUndefined()
-    expect(bloomOf('lagoon')).toBeUndefined()
+  test('every drop stays on screen from a tall window to a wide one', () => {
+    for (const aspect of [0.5, 0.62, 0.75, 1, 1.2, 1.33, 1.5, 1.6, 2, 2.4]) {
+      const [left, right] = visibleRange(aspect)
+      const shift = edgeShift(aspect)
+
+      for (const [side, x] of bloomSpots()) {
+        const drawnAt = side === 'left' ? x + shift : x - shift
+
+        expect(drawnAt - 64).toBeGreaterThanOrEqual(left)
+        expect(drawnAt + 64).toBeLessThanOrEqual(right)
+      }
+    }
   })
 
   test('one spinner word always maps to the same diary word', () => {

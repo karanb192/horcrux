@@ -7,7 +7,6 @@ const PLUGIN = 'otherhand'
 const COMMAND = 'otherhand'
 const OFF_KEY = 'off'
 const BLOOM_MS = 3800
-const BLOOM_PREFIX = `${PAGE}-ink-`
 
 // Present-tense words for the terminal's spinner, and past-tense ones for the line that closes a turn.
 export const WRITING = [
@@ -23,17 +22,24 @@ export const WRITING = [
 
 export const WRITTEN = ['Inked', 'Written', 'Penned', 'Blotted'] as const
 
-// What this build of Claude Code takes. A build from before `style` or `sound` refuses the whole set, so the look
-// is tried whole first and then with less. Learned once per load.
+// The words a build says when it refuses an attribute it does not know, such as `sound` on an older one.
+const UNKNOWN_ATTRIBUTE = /does not know the attribute/
+
+// What this build of Claude Code takes. Learned once per load, and only from a refusal that names an unknown
+// attribute: any other failure is passed on and teaches nothing.
 let takes: 'all' | 'style' | 'colors' | undefined
 
-// Whether the person turned the look off. Read from the store at session start and on each command; until then, on.
+// Whether the diary is closed in this session. Undefined until read from the store or set by the command.
 let off: boolean | undefined
 
-// Whether the last set said a window draws the look. Ink only blooms where someone can see it.
-let drawn = false
-let blooming = false
+// Whether the theme standing is this mod's. False once a backdrop drawn for another plugin is seen, so closing
+// the diary never clears a theme someone else chose.
+let ours = false
+
+// The drop of ink soaking in now, by its spot, and the timer that dries it.
+let bloom: number | undefined
 let blooms = 0
+let drying: { cancel: () => void } | undefined
 
 /** A stable pick from a list, so one spinner word maps to one diary word for the whole session. */
 export function pick<T>(list: readonly T[], seed: string): T {
@@ -46,37 +52,37 @@ export function pick<T>(list: readonly T[], seed: string): T {
   return list[Math.abs(hash) % list.length] as T
 }
 
-/** The bloom number in a scene name such as `page-ink-3`, or undefined for the plain page. */
-export function bloomOf(name: string): number | undefined {
-  if (!name.startsWith(BLOOM_PREFIX)) {
-    return undefined
-  }
-
-  const n = Number(name.slice(BLOOM_PREFIX.length))
-
-  return Number.isInteger(n) && n >= 0 && n < BLOOM_COUNT ? n : undefined
+function refusesAttribute(error: unknown): boolean {
+  return UNKNOWN_ATTRIBUTE.test(String(error))
 }
 
+/** Reads whether the diary is closed. A store that can't be read leaves it open, and says so in the debug log. */
 async function readOff($: EngineInterface): Promise<boolean> {
   try {
     off = (await $.store.get(OFF_KEY)) === true
-  } catch {
+  } catch (error) {
     off = false
+    $.ui.log(`otherhand: could not read the on/off setting, so the diary stays open: ${String(error)}`, { to: 'debug' })
   }
 
   return off
 }
 
-async function setLook($: EngineInterface, sceneName: string): Promise<ThemeResult> {
+async function isOff($: EngineInterface): Promise<boolean> {
+  return off ?? readOff($)
+}
+
+/** Sets the whole look once. A build that refuses `sound` or `style` gets the look without it. */
+async function setLook($: EngineInterface): Promise<ThemeResult> {
   if (takes === undefined || takes === 'all') {
     try {
-      const set = await $.theme.set(lookFor(sceneName, true, true))
+      const set = await $.theme.set(lookFor(PAGE, true, true))
 
       takes = 'all'
 
       return set
     } catch (error) {
-      if (takes === 'all') {
+      if (takes === 'all' || !refusesAttribute(error)) {
         throw error
       }
     }
@@ -84,19 +90,19 @@ async function setLook($: EngineInterface, sceneName: string): Promise<ThemeResu
 
   if (takes === undefined || takes === 'style') {
     try {
-      const set = await $.theme.set(lookFor(sceneName, false, true))
+      const set = await $.theme.set(lookFor(PAGE, false, true))
 
       takes = 'style'
 
       return set
     } catch (error) {
-      if (takes === 'style') {
+      if (takes === 'style' || !refusesAttribute(error)) {
         throw error
       }
     }
   }
 
-  const set = await $.theme.set(lookFor(sceneName, false, false))
+  const set = await $.theme.set(lookFor(PAGE, false, false))
 
   takes = 'colors'
 
@@ -104,66 +110,60 @@ async function setLook($: EngineInterface, sceneName: string): Promise<ThemeResu
 }
 
 async function open($: EngineInterface): Promise<ThemeResult> {
-  const set = await setLook($, PAGE)
+  const set = await setLook($)
 
-  drawn = set.isDrawn
+  ours = true
 
   return set
 }
 
-async function settle($: EngineInterface): Promise<void> {
-  try {
-    if (off !== true) {
-      await setLook($, PAGE)
-    }
-  } catch (error) {
-    $.ui.log(`otherhand: ${String(error)}`, { to: 'debug' })
-  } finally {
-    blooming = false
-  }
-}
-
-/** A drop of ink soaks into the margin when you write. One at a time; nothing where no window draws the page. */
-async function bloom($: EngineInterface): Promise<void> {
-  if (blooming || !drawn || off === true) {
-    return
-  }
-
-  blooming = true
+/**
+ * A drop of ink lands in a margin and soaks in. It redraws this mod's own backdrop and nothing else: where no
+ * window draws the page, or another theme stands, nothing shows. A new turn starts a new drop.
+ */
+function startBloom($: EngineInterface): void {
+  drying?.cancel()
   blooms += 1
-
-  try {
-    await setLook($, `${BLOOM_PREFIX}${blooms % BLOOM_COUNT}`)
-  } catch (error) {
-    blooming = false
-    $.ui.log(`otherhand: ${String(error)}`, { to: 'debug' })
-
-    return
-  }
-
-  $.clock.after(BLOOM_MS, () => void settle($))
+  bloom = blooms % BLOOM_COUNT
+  $.ui.invalidate('ui.render')
+  drying = $.clock.after(BLOOM_MS, () => {
+    bloom = undefined
+    drying = undefined
+    $.ui.invalidate('ui.render')
+  })
 }
 
 async function command($: EngineInterface, args: string): Promise<string> {
   const word = args.trim().toLowerCase()
-  const wasOff = await readOff($)
-  const wantOff = word === 'off' ? true : word === 'on' ? false : word === '' ? !wasOff : undefined
+  const closed = await isOff($)
+  const wantOff = word === 'off' ? true : word === 'on' ? false : word === '' ? !closed : undefined
 
   if (wantOff === undefined) {
     return 'Try /otherhand, /otherhand on or /otherhand off.'
   }
 
-  await $.store.set(OFF_KEY, wantOff)
-  off = wantOff
-
   if (wantOff) {
-    await $.theme.clear()
-    drawn = false
+    if (closed) {
+      return 'The diary is already closed. /otherhand opens it.'
+    }
+
+    if (ours) {
+      await $.theme.clear()
+    }
+
+    ours = false
+    drying?.cancel()
+    bloom = undefined
+    off = true
+    await $.store.set(OFF_KEY, true)
 
     return 'The diary closes. /otherhand opens it again.'
   }
 
   const set = await open($)
+
+  off = false
+  await $.store.set(OFF_KEY, false)
 
   return set.isDrawn
     ? 'The diary is open. Write something.'
@@ -178,7 +178,6 @@ export const register: Register = on => {
       name: COMMAND,
       description: 'Open or close the diary. Add "on" or "off".',
       argumentHint: '[on|off]',
-      immediate: true,
     })
 
     const unpainted = COLOR_PROBLEMS.find(line => line.startsWith("Desktop won't paint"))
@@ -198,34 +197,39 @@ export const register: Register = on => {
     return started
   })
 
+  // The main conversation's turns only: a subagent starting its own turn is not you writing.
   on('turn.start', async ($, e, next) => {
-    void bloom($)
+    if (e.agentId === undefined && off !== true && ours) {
+      startBloom($)
+    }
 
     return next(e)
   })
 
+  // Shown to you alone: the command's answer never goes to the model.
   on('command.run', { command: COMMAND }, async ($, e) => ({
     text: await command($, e.args).catch((error: unknown) => `otherhand: ${String(error)}`),
+    isTextDisplayOnly: true,
   }))
 
   on('ui.render', { component: 'Backdrop' }, ($, e, next) => {
-    if (e.props.plugin !== PLUGIN || (e.surface !== 'desktop' && e.surface !== 'mobile')) {
+    if (e.props.plugin !== PLUGIN) {
+      ours = false
+
       return next(e)
     }
 
-    const name = e.props.scene
-
-    if (name !== PAGE && bloomOf(name) === undefined) {
+    if ((e.surface !== 'desktop' && e.surface !== 'mobile') || e.props.scene !== PAGE) {
       return next(e)
     }
 
     const { Svg } = $.ui.resolve(e)
 
-    return <Svg alt="An old diary page, lined, with a few ink blots" source={scene(bloomOf(name))} />
+    return <Svg alt="An old diary page, lined, with a few ink blots" source={scene(bloom)} />
   })
 
   on('ui.render', { component: 'Spinner' }, async ($, e, next) => {
-    if (e.surface !== 'terminal' || off === true || (off === undefined && (await readOff($)))) {
+    if (e.surface !== 'terminal' || (await isOff($))) {
       return next(e)
     }
 
@@ -233,7 +237,7 @@ export const register: Register = on => {
   })
 
   on('ui.render', { component: 'TurnDuration' }, async ($, e, next) => {
-    if (off === true || (off === undefined && (await readOff($)))) {
+    if (await isOff($)) {
       return next(e)
     }
 

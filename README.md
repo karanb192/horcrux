@@ -23,7 +23,7 @@ In the **Claude desktop app** (the Code tab):
 
 1. **The page.** An aged, lined diary page behind the conversation, with old ink blots and foxing at the edges. At night it is the same page by candlelight, with a slow flicker.
 2. **The second hand.** Claude's replies and your messages in cursive, each in its own ink: yours blue-black, the diary's brown-black.
-3. **Ink that soaks in.** Each time you write, a drop of ink lands in the margin, spreads and sinks into the paper.
+3. **Ink that soaks in.** Each time you write, a drop of ink lands in a margin, spreads and sinks into the paper. It stays in the margins at any window size, square and tall ones included.
 4. **Sound, if you want it.** A quiet room with a candle, a nib touching the page when you send, a quill stroke for each tool call, a page turning when the conversation compacts. Off until you press the speaker in the session's title bar.
 
 In the **terminal**, which draws no themes, the spinner and the line that closes each turn speak the diary's words: "Dipping the quill…", "Writing back…", "Inked for 12s".
@@ -44,16 +44,17 @@ Code blocks, diffs, permission prompts and questions keep the app's own look, so
 |---|---|
 | Reads | Its own on/off setting |
 | Writes | Its own on/off setting |
-| Sees | Only what it draws: the backdrop, the spinner and the turn line. It never reads your prompts or Claude's replies |
+| Sees | The backdrop, the spinner and the turn line it draws, and the start of each turn. A turn's event carries your prompt; Otherhand only checks whether the turn is the main conversation's, and never reads, keeps or sends the prompt |
 | Network | None |
-| Tokens | None |
+| Tokens | None. Even `/otherhand`'s answers are shown to you alone and never sent to the model |
 
 `claude plugin validate` prints this footprint before anything runs.
 
 ## Limits
 
 - The page, the cursive type and the sound need the Claude desktop app. The terminal and the editors draw no themes; there you get the diary's words only.
-- One theme shows at a time. Another mod that sets a theme replaces this one, and `/otherhand off` clears whatever theme is showing.
+- One theme shows at a time. Another mod that sets a theme replaces this one; Otherhand never takes it back, and `/otherhand off` only clears the page when the page is Otherhand's.
+- `/otherhand` typed while Claude is working runs when the turn ends.
 - Fonts are the system's generic cursive font. The theme API takes generic families only, so the handwriting looks different on different machines.
 - If you ask your system for reduced motion, the page holds still and the ink does not bloom.
 
