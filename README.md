@@ -22,13 +22,13 @@ Then open a new session, or run `/reload-plugins` in an open one.
 In the **Claude desktop app** (the Code tab):
 
 1. **The page.** An aged, lined diary page behind the conversation, with old ink blots and foxing at the edges. At night it is the same page by candlelight, with a slow flicker.
-2. **The second hand.** Claude's replies and your messages in cursive, each in its own ink: yours blue-black, the diary's brown-black.
+2. **The second hand.** Claude's replies and your messages in cursive, written straight on the page, each in its own ink: yours blue-black, the diary's brown-black.
 3. **Ink that soaks in.** Each time you write, a drop of ink lands in a margin, spreads and sinks into the paper. The margins slide in with the window, so the ink stays whole from a tall window to a 3.5:1 ultrawide.
 4. **Sound, if you want it.** A quiet room with a candle, a nib touching the page when you send, a quill stroke for each tool call, a page turning when the conversation compacts. Off until you press the speaker in the session's title bar.
 
 The **Claude mobile app** draws the page and the ink too, under its own veil; the cursive type and the sound are the desktop app's alone.
 
-In the **terminal**, which draws no themes, the spinner and the line that closes each turn speak the diary's words: "Dipping the quill…", "Writing back…", "Inked for 12s". The editor extensions get neither.
+In the **terminal**, which draws no themes, the spinner and the line that closes each turn speak the diary's words: "Dipping the quill…", "Soaking in your words…", "Scrawled for 12s". The editor extensions get neither.
 
 Code blocks, diffs, permission prompts and questions keep the app's own look, so nothing you need to read carefully ever turns cursive. Your accessibility settings win over the theme.
 

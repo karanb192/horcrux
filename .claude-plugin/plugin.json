@@ -1,6 +1,6 @@
 {
   "name": "otherhand",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A Tom Riddle's diary theme for Claude Code: you write on an old page, a drop of ink soaks in, and a second hand writes back in cursive. Desktop app draws the page, type and sound; the terminal gets the diary's words. Adds no tokens, no network.",
   "author": { "name": "Karan Bansal", "url": "https://github.com/karanb192" },
   "homepage": "https://github.com/karanb192/otherhand",

@@ -8,19 +8,42 @@ const COMMAND = 'otherhand'
 const OFF_KEY = 'off'
 const BLOOM_MS = 3800
 
-// Present-tense words for the terminal's spinner, and past-tense ones for the line that closes a turn.
+// Words for the terminal's spinner while Claude works. Each reads as something a diary does, never as a plain
+// status verb, so the line gets noticed.
 export const WRITING = [
-  'Inking',
   'Dipping the quill',
   'Writing back',
   'Turning the pages',
   'Remembering',
-  'Blotting',
   'Reading between the lines',
   'Waiting for the ink',
+  'Scratching at the page',
+  'Pressing the nib',
+  'Ink pooling',
+  'Soaking in your words',
+  'Listening through the paper',
+  'Leafing through old entries',
+  'Whispering in ink',
+  'Smudging the margins',
+  'Turning a yellowed page',
+  'Searching old pages',
+  'Reading your hand',
+  'Remembering fifty years back',
 ] as const
 
-export const WRITTEN = ['Inked', 'Written', 'Penned', 'Blotted'] as const
+// Words for the line that closes a turn, which the engine draws as "<word> for 3s".
+export const WRITTEN = [
+  'Inked',
+  'Blotted',
+  'Scrawled',
+  'Scribbled',
+  'Quilled',
+  'Smudged',
+  'Inscribed',
+  'Remembered',
+  'Soaked in',
+  'Dried',
+] as const
 
 // The words a build says when it refuses an attribute it does not know, such as `sound` on an older one.
 const UNKNOWN_ATTRIBUTE = /does not know the attribute/
