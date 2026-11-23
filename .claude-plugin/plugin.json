@@ -1,10 +1,10 @@
 {
-  "name": "otherhand",
-  "version": "0.1.1",
-  "description": "A Tom Riddle's diary theme for Claude Code: you write on an old page, a drop of ink soaks in, and a second hand writes back in cursive. Desktop app draws the page, type and sound; the terminal gets the diary's words. Adds no tokens, no network.",
+  "name": "horcrux",
+  "version": "0.2.0",
+  "description": "Turn Claude Code into Tom Riddle's diary. Write on an old page, your ink soaks in, and a second hand writes back. Floating candles at night. /lumos to open, /nox to close. Desktop app; draws only, no tokens.",
   "author": { "name": "Karan Bansal", "url": "https://github.com/karanb192" },
-  "homepage": "https://github.com/karanb192/otherhand",
-  "repository": "https://github.com/karanb192/otherhand",
+  "homepage": "https://github.com/karanb192/horcrux",
+  "repository": "https://github.com/karanb192/horcrux",
   "license": "MIT",
-  "keywords": ["mod", "theme", "diary", "desktop", "tom-riddle"]
+  "keywords": ["mod", "theme", "harry-potter", "tom-riddle", "diary", "horcrux", "desktop"]
 }

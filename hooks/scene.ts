@@ -1,16 +1,65 @@
 // The page behind the conversation, as one SVG string. Pure vector: gradients, lines and paths, no pictures, no
-// filters, no fonts. Light mode is an aged page by day; dark mode is the same page by candlelight.
+// filters, no fonts. By day an old, blank, water-stained diary page; at night the same page under floating candles.
 //
-// The root crops to fill any window (`slice`), so the paper, rules and stains may lose their sides. The margin,
-// the spine and the ink live in two edge groups that @media rules slide inward as the window narrows, so they stay
-// on screen in a square or tall window too.
+// The root crops to fill any window (`slice`). The spine, the margins' ink, the footprints and the seal live in two
+// edge groups that @media rules slide inward as the window narrows, so they stay on screen in square or tall windows.
 
 const W = 1600
 const H = 1000
 
-// Where a drop of ink lands when you write: the margins, never the middle where the words sit or the foot where
-// the message box sits. Left drops are drawn in the left group, right drops in the right group. Every drop sits
-// between y=340 and y=660, which a window as wide as 3.5:1 still shows whole.
+/** What the page is doing besides lying there. */
+export type SceneState = {
+  /** A drop of ink soaking into a margin: its spot. */
+  bloom?: number
+  /** The other hand writing in the right margin while Claude replies, then its words sinking away. */
+  writing?: 'on' | 'sinking'
+  /** The page lighting up after /lumos: dim to bright, and at night the candles catching one by one. */
+  entering?: boolean
+}
+
+// A fixed sequence, so the page is the same art every time it is drawn.
+function rng(seed: number): () => number {
+  let s = seed
+
+  return () => {
+    s = (s * 16807) % 2147483647
+
+    return (s - 1) / 2147483646
+  }
+}
+
+const f = (n: number) => n.toFixed(1)
+
+function blob(rand: () => number, cx: number, cy: number, r: number, wobble: number, n = 14): string {
+  const pts: [number, number][] = []
+
+  for (let i = 0; i < n; i += 1) {
+    const a = (i / n) * Math.PI * 2
+    const rr = r * (1 + (rand() * 2 - 1) * wobble)
+
+    pts.push([cx + Math.cos(a) * rr, cy + Math.sin(a) * rr])
+  }
+
+  let d = ''
+
+  for (let i = 0; i < n; i += 1) {
+    const p0 = pts[(i - 1 + n) % n] ?? [cx, cy]
+    const p1 = pts[i] ?? [cx, cy]
+    const p2 = pts[(i + 1) % n] ?? [cx, cy]
+    const p3 = pts[(i + 2) % n] ?? [cx, cy]
+
+    if (i === 0) {
+      d += `M${f(p1[0])} ${f(p1[1])}`
+    }
+
+    d += `C${f(p1[0] + (p2[0] - p0[0]) / 6)} ${f(p1[1] + (p2[1] - p0[1]) / 6)} ${f(p2[0] - (p3[0] - p1[0]) / 6)} ${f(p2[1] - (p3[1] - p1[1]) / 6)} ${f(p2[0])} ${f(p2[1])}`
+  }
+
+  return `${d}Z`
+}
+
+// Where a drop of ink lands when you write. Every drop sits between y=340 and y=660, which a window as wide as 3.5:1
+// still shows whole.
 const BLOOM_SPOTS: readonly (readonly ['left' | 'right', number, number])[] = [
   ['left', 96, 380],
   ['right', 1512, 470],
@@ -24,8 +73,6 @@ const BLOOM_SPOTS: readonly (readonly ['left' | 'right', number, number])[] = [
 
 export const BLOOM_COUNT = BLOOM_SPOTS.length
 
-// With `slice`, a window narrower than 16:10 shows x from 800 - 500a to 800 + 500a, where a is its width over its
-// height. Each step slides the edge groups in by at least what that window hides.
 // Each entry: a ratio written as tenths (16 is 16/10) and the slide for windows at or below it.
 const EDGE_STEPS: readonly (readonly [number, number])[] = [
   [16, 100],
@@ -37,55 +84,101 @@ const EDGE_STEPS: readonly (readonly [number, number])[] = [
 ]
 
 function edgeRules(): string {
-  const rules: string[] = []
-
-  for (const [tenths, shift] of EDGE_STEPS) {
-    rules.push(
+  return EDGE_STEPS.map(
+    ([tenths, shift]) =>
       `@media (max-aspect-ratio: ${tenths}/10){.edge-l{transform:translate(${shift}px,0)}.edge-r{transform:translate(${-shift}px,0)}}`,
-    )
-  }
-
-  return rules.join('\n')
+  ).join('\n')
 }
 
 const STYLE = `
-.p0{stop-color:#f6ecd3}.p1{stop-color:#ecdcb6}.p2{stop-color:#d6bf8e}
-.s0{stop-color:#5a4324;stop-opacity:.28}.s1{stop-color:#5a4324;stop-opacity:0}
-.f0{stop-color:#9a6b2f;stop-opacity:.22}.f1{stop-color:#9a6b2f;stop-opacity:0}
+.p0{stop-color:#f6ecd3}.p1{stop-color:#ecdcb6}.p2{stop-color:#cfb487}
+.s0{stop-color:#5a4324;stop-opacity:.3}.s1{stop-color:#5a4324;stop-opacity:0}
+.f0{stop-color:#9a6b2f;stop-opacity:.2}.f1{stop-color:#9a6b2f;stop-opacity:0}
 .g0{stop-color:#ffc070;stop-opacity:.05}.g1{stop-color:#ffc070;stop-opacity:0}
-.k0{stop-color:#1c130b;stop-opacity:.75}.k1{stop-color:#1c130b;stop-opacity:.35}.k2{stop-color:#1c130b;stop-opacity:0}
-.rule{stroke:#7f93a6;stroke-opacity:.2;stroke-width:1.2}
-.margin{stroke:#b0584a;stroke-opacity:.28;stroke-width:1.6}
-.blot{fill:#1c130b;fill-opacity:.62}
-.speck{fill:#1c130b;fill-opacity:.45}
+.k0{stop-color:#140c06;stop-opacity:.6}.k1{stop-color:#140c06;stop-opacity:0}
+.fib{stroke:#7a5a30;stroke-opacity:.07;stroke-width:1}
+.tide{fill:none;stroke:#8a6430;stroke-opacity:.08;stroke-width:1.4}.tide2{fill:none;stroke:#8a6430;stroke-opacity:.04;stroke-width:10}
+.tidefill{fill:#a07a40;fill-opacity:.035}
+.blot{fill:#1c130b;fill-opacity:.6}.speck{fill:#1c130b;fill-opacity:.45}
+.ink{fill:#140c06}.vein{fill:none;stroke:#140c06;stroke-linecap:round}.rim{fill:none;stroke:none}
+.hand{fill:none;stroke:#2a1a0d;stroke-opacity:.55;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.foot{fill:#2a1a0d;fill-opacity:0;animation:step 26s linear infinite}
+.wax{fill:#8e221b}.wax2{fill:#6e1712}.wax3{fill:none;stroke:#b8453a;stroke-width:3;stroke-linecap:round;stroke-opacity:.8}
+.night{display:none}
 .glow{opacity:.85;animation:flicker 7s ease-in-out infinite alternate}
-.bloom{opacity:0;transform-box:fill-box;transform-origin:center;animation:soak 3.6s ease-out 1 forwards}
-.drop{opacity:0;animation:drop 2.4s ease-out .25s 1 forwards}
+.veil{fill:#1a1209;opacity:0}
 @keyframes flicker{0%{opacity:.7}35%{opacity:.95}60%{opacity:.8}100%{opacity:1}}
-@keyframes soak{0%{opacity:.85;transform:scale(.15)}30%{opacity:.8;transform:scale(.85)}100%{opacity:0;transform:scale(1.15)}}
-@keyframes drop{0%{opacity:.7}100%{opacity:0}}
+@keyframes step{0%{fill-opacity:0}1.5%{fill-opacity:.42}22%{fill-opacity:.32}34%,100%{fill-opacity:0}}
+.bloom{opacity:0;animation:sink 3.8s ease-in 1 forwards}
+.core{transform-box:fill-box;transform-origin:center;animation:spread 3.8s cubic-bezier(.2,.7,.3,1) 1 forwards}
+.v{stroke-dasharray:1;stroke-dashoffset:1;animation:creep 3.8s ease-out 1 forwards}
+@keyframes spread{0%{transform:scale(.1)}30%{transform:scale(1)}100%{transform:scale(1.08)}}
+@keyframes creep{0%,8%{stroke-dashoffset:1}55%,100%{stroke-dashoffset:0}}
+@keyframes sink{0%{opacity:0}5%{opacity:.92}50%{opacity:.85}100%{opacity:0}}
+.w{stroke-dasharray:1;stroke-dashoffset:1;animation:scrawl 9s ease-in-out infinite}
+@keyframes scrawl{0%{stroke-dashoffset:1;opacity:1}30%,70%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.gone{animation:fade 2.4s ease-in 1 forwards}
+@keyframes fade{0%{opacity:1}100%{opacity:0}}
+.enter{animation:lift 2.8s ease-out 1 forwards}
+@keyframes lift{0%{opacity:.75}100%{opacity:0}}
+.star{fill:#f6e7c4;opacity:.35;animation:twinkle 6s ease-in-out infinite alternate}
+@keyframes twinkle{0%{opacity:.15}100%{opacity:.7}}
+.candle{animation:bob 7s ease-in-out infinite alternate}
+@keyframes bob{0%{transform:translate(0,0)}100%{transform:translate(0,-10px)}}
+.flame{transform-box:fill-box;transform-origin:50% 100%;animation:burn 2.2s ease-in-out infinite alternate}
+@keyframes burn{0%{transform:scale(1,1)}100%{transform:scale(.92,1.08)}}
+.ignite{transform-box:fill-box;transform-origin:50% 100%;animation:ignite 1.2s ease-out 1 backwards}
+@keyframes ignite{0%{transform:scale(0);opacity:0}60%{transform:scale(1.2);opacity:1}100%{transform:scale(1);opacity:1}}
+.wick{stroke:#2a1a0d;stroke-width:2}
+.wax-c{fill:url(#hx-candle-body)}
+.cb0{stop-color:#f4ead2}.cb1{stop-color:#cdbb93}
+.fl0{stop-color:#fff6d8}.fl1{stop-color:#ffb347}.fl2{stop-color:#e0661c}
+.halo0{stop-color:#ffcf7a;stop-opacity:.55}.halo1{stop-color:#ffcf7a;stop-opacity:0}
 ${edgeRules()}
 @media (prefers-color-scheme: dark){
-.p0{stop-color:#3a2c1d}.p1{stop-color:#251b12}.p2{stop-color:#140e09}
+.p0{stop-color:#3a2c1d}.p1{stop-color:#251b12}.p2{stop-color:#110b06}
 .s0{stop-color:#000000;stop-opacity:.55}.s1{stop-color:#000000;stop-opacity:0}
 .f0{stop-color:#000000;stop-opacity:.25}.f1{stop-color:#000000;stop-opacity:0}
-.g0{stop-color:#ffad4d;stop-opacity:.22}.g1{stop-color:#ffad4d;stop-opacity:0}
-.k0{stop-color:#050302;stop-opacity:.8}.k1{stop-color:#050302;stop-opacity:.4}.k2{stop-color:#050302;stop-opacity:0}
-.rule{stroke:#8a7558;stroke-opacity:.18}
-.margin{stroke:#a4574a;stroke-opacity:.3}
-.blot{fill:#050302;fill-opacity:.7}
-.speck{fill:#050302;fill-opacity:.5}
+.g0{stop-color:#ffad4d;stop-opacity:.24}.g1{stop-color:#ffad4d;stop-opacity:0}
+.k0{stop-color:#030201;stop-opacity:.7}.k1{stop-color:#030201;stop-opacity:0}
+.fib{stroke:#d9b98a;stroke-opacity:.045}
+.tide{stroke:#000000;stroke-opacity:.22}.tide2{stroke:#000000;stroke-opacity:.1}.tidefill{fill:#000000;fill-opacity:.06}
+.blot{fill:#050302;fill-opacity:.7}.speck{fill:#050302;fill-opacity:.5}
+.ink{fill:#030201}.vein{stroke:#030201}.rim{stroke:#ffb35c;stroke-opacity:.4;stroke-width:2.5}
+.hand{stroke:#e9d6ad;stroke-opacity:.45}
+.foot{fill:#e9d6ad}
+.wax{fill:#7a1a16}.wax2{fill:#5a110e}.wax3{stroke:#a63a30}
+.night{display:inline}
+.veil{fill:#000000}
 }
 `
 
-function rules(): string {
-  const lines: string[] = []
+function fibres(): string {
+  const rand = rng(11)
+  let s = ''
 
-  for (let y = 112; y < H; y += 40) {
-    lines.push(`<line class="rule" x1="0" y1="${y}" x2="${W}" y2="${y}"/>`)
+  for (let i = 0; i < 320; i += 1) {
+    const x = rand() * W
+    const y = rand() * H
+    const a = rand() * Math.PI
+    const l = 5 + rand() * 11
+
+    s += `<line class="fib" x1="${f(x)}" y1="${f(y)}" x2="${f(x + Math.cos(a) * l)}" y2="${f(y + Math.sin(a) * l)}"/>`
   }
 
-  return lines.join('')
+  return s
+}
+
+// Two old water rings, the marks of a page that was once soaked through.
+function tides(): string {
+  const rand = rng(29)
+  const ring = (cx: number, cy: number, r: number) => {
+    const d = blob(rand, cx, cy, r, 0.12, 18)
+
+    return `<path class="tidefill" d="${d}"/><path class="tide" d="${d}"/><path class="tide2" d="${blob(rand, cx + 6, cy + 4, r * 0.93, 0.14, 16)}"/>`
+  }
+
+  return ring(1300, 820, 170) + ring(330, 150, 110)
 }
 
 // Foxing: the brown spots old paper grows, mostly near the edges.
@@ -101,76 +194,183 @@ const FOXING: readonly (readonly [number, number, number])[] = [
 ]
 
 function foxing(): string {
-  return FOXING.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="url(#oh-fox)"/>`).join('')
+  return FOXING.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="url(#hx-fox)"/>`).join('')
 }
 
-// Two old blots that were always there: one in the top right corner, one at the bottom left.
-const OLD_INK_RIGHT = `
-<path class="blot" d="M1452 92c18-14 44-10 52 8 9 19 30 14 34 32 4 20-20 26-18 44 2 16-22 22-34 12-14-11-30 4-44-8-13-11 0-27-10-40-11-15 4-36 20-48z"/>
-<circle class="speck" cx="1418" cy="74" r="5"/><circle class="speck" cx="1556" cy="118" r="4"/>
-<circle class="speck" cx="1530" cy="196" r="3"/><circle class="speck" cx="1404" cy="150" r="2.5"/>
-`
+const OLD_BLOT = `<path class="blot" d="M58 872c10-16 34-18 44-4 12 15 30 8 34 24 4 17-16 24-12 38 3 13-18 20-28 10-11-10-27 2-37-9-9-10 2-22-6-33-7-11-3-18 5-26z"/>
+<circle class="speck" cx="150" cy="860" r="4"/><circle class="speck" cx="40" cy="950" r="3"/><circle class="speck" cx="132" cy="958" r="2.5"/>`
 
-const OLD_INK_LEFT = `
-<path class="blot" d="M58 872c10-16 34-18 44-4 12 15 30 8 34 24 4 17-16 24-12 38 3 13-18 20-28 10-11-10-27 2-37-9-9-10 2-22-6-33-7-11-3-18 5-26z"/>
-<circle class="speck" cx="150" cy="860" r="4"/><circle class="speck" cx="40" cy="950" r="3"/><circle class="speck" cx="132" cy="958" r="2.5"/>
-`
+// Someone small and unseen walks up the left margin, one step at a time, and the steps fade behind them.
+function footprints(): string {
+  let s = ''
 
-function bloomAt(x: number, y: number): string {
-  return [
-    `<circle class="bloom" cx="${x}" cy="${y}" r="64" fill="url(#oh-ink)"/>`,
-    `<circle class="drop" cx="${x + 52}" cy="${y - 34}" r="5" fill="url(#oh-ink)"/>`,
-    `<circle class="drop" cx="${x - 40}" cy="${y + 46}" r="4" fill="url(#oh-ink)"/>`,
-    `<circle class="drop" cx="${x + 30}" cy="${y + 58}" r="3" fill="url(#oh-ink)"/>`,
-  ].join('')
+  for (let i = 0; i < 14; i += 1) {
+    const left = i % 2 === 0
+    const x = left ? 78 : 104
+    const y = 880 - i * 52
+    const tilt = left ? -8 : 8
+
+    const flip = left ? -1 : 1
+
+    s += `<g transform="translate(${x} ${y}) rotate(${tilt}) scale(${flip} 1)"><path class="foot" style="animation-delay:${f(i * 0.9)}s" d="M0 -16c5 0 7 5 7 11s-2 10-6 10-6-4-6-10 1-11 5-11zM1 8c3 0 5 2 5 5s-2 5-5 5-5-2-5-5 2-5 5-5zM-3 -22a2 2 0 1 0 0.1 0zM1 -24a2 2 0 1 0 0.1 0zM5 -23a1.8 1.8 0 1 0 0.1 0zM8 -20a1.6 1.6 0 1 0 0.1 0z"/></g>`
+  }
+
+  return s
 }
 
-function edges(bloomIndex: number | undefined): string {
+// A seal of red wax, pressed with a quill crossed over a drop of ink.
+const SEAL = (() => {
+  const rand = rng(41)
+
+  return `<g transform="translate(1486 160)">
+<path class="wax" d="${blob(rand, 0, 0, 46, 0.1, 18)}"/>
+<path class="wax2" d="${blob(rand, 0, 0, 34, 0.04, 16)}"/>
+<path class="wax3" d="M-16 18 C-6 4 6 -10 18 -22"/>
+<path class="wax3" d="M18 -22 C10 -12 2 -4 -4 4"/>
+<path class="wax3" d="M2 -10 c0 0 -10 12 -10 18 a10 10 0 0 0 20 0 c0 -6 -10 -18 -10 -18z"/>
+</g>`
+})()
+
+function bloomAt(index: number, x: number, y: number): string {
+  const rand = rng(100 + index)
+  let veins = ''
+
+  for (let i = 0; i < 11; i += 1) {
+    const a = (i / 11) * Math.PI * 2 + (rand() - 0.5) * 0.5
+    const len = 50 + rand() * 80
+    const bend = (rand() - 0.5) * 1
+    const mx = x + Math.cos(a + bend) * len * 0.55
+    const my = y + Math.sin(a + bend) * len * 0.55
+    const w = 2.5 + rand() * 3.5
+
+    veins += `<path class="vein v" pathLength="1" stroke-width="${f(w)}" style="animation-delay:${f(0.1 + rand() * 0.4)}s" d="M${x} ${y}Q${f(mx)} ${f(my)} ${f(x + Math.cos(a) * len)} ${f(y + Math.sin(a) * len)}"/>`
+  }
+
+  let specks = ''
+
+  for (let i = 0; i < 7; i += 1) {
+    const a = rand() * Math.PI * 2
+    const d = 60 + rand() * 60
+
+    specks += `<circle class="ink" cx="${f(x + Math.cos(a) * d)}" cy="${f(y + Math.sin(a) * d)}" r="${f(1.5 + rand() * 3)}"/>`
+  }
+
+  const core = blob(rand, x, y, 40, 0.28, 16)
+
+  return `<g class="bloom"><circle cx="${x}" cy="${y}" r="96" fill="url(#hx-soak)"/>${veins}<path class="ink core" d="${core}"/><path class="rim core" d="${core}"/>${specks}</g>`
+}
+
+// The other hand: lines of unreadable script in the right margin. They write themselves over and over while
+// Claude replies, then sink into the paper.
+function hand(state: 'on' | 'sinking'): string {
+  const rand = rng(57)
+  let s = ''
+
+  for (let line = 0; line < 6; line += 1) {
+    const y = 360 + line * 56
+    let d = `M1416 ${y}`
+    let x = 1416
+
+    while (x < 1560) {
+      const step = 9 + rand() * 9
+      const up = 6 + rand() * 12
+
+      d += `c${f(step * 0.3)} ${f(-up)} ${f(step * 0.7)} ${f(-up)} ${f(step)} 0`
+      x += step
+
+      if (rand() > 0.72) {
+        d += `c${f(-4)} ${f(6)} ${f(4)} ${f(8)} ${f(6)} 0`
+        x += 6
+      }
+    }
+
+    const delay = state === 'on' ? `animation-delay:${f(line * 1.2)}s` : ''
+
+    s += `<path class="hand${state === 'on' ? ' w' : ''}" pathLength="1" style="${delay}" d="${d}"/>`
+  }
+
+  return `<g class="${state === 'sinking' ? 'gone' : ''}">${s}</g>`
+}
+
+// The night: a ceiling of faint stars and candles that float, bob and burn.
+function night(entering: boolean): string {
+  const rand = rng(73)
+  let stars = ''
+
+  for (let i = 0; i < 70; i += 1) {
+    stars += `<circle class="star" cx="${f(rand() * W)}" cy="${f(rand() * 300)}" r="${f(0.7 + rand() * 1.3)}" style="animation-delay:${f(-rand() * 6)}s;animation-duration:${f(4 + rand() * 5)}s"/>`
+  }
+
+  const CANDLES: readonly (readonly [number, number, number])[] = [
+    [140, 120, 1],
+    [380, 70, 0.8],
+    [620, 150, 0.7],
+    [980, 90, 0.75],
+    [1220, 140, 0.85],
+    [1400, 300, 0.95],
+    [230, 330, 0.9],
+  ]
+
+  // After /lumos each candle catches in turn: its halo and flame grow from nothing.
+  const candles = CANDLES.map(([x, y, scale], i) => {
+    const lit = entering ? ` class="ignite" style="animation-delay:${f(0.6 + i * 0.35)}s"` : ''
+
+    return `<g transform="translate(${x} ${y}) scale(${scale})"><g class="candle" style="animation-delay:${f(-i * 1.3)}s">
+<rect class="wax-c" x="-9" y="-6" width="18" height="70" rx="3"/>
+<line class="wick" x1="0" y1="-6" x2="0" y2="-12"/>
+<g${lit}><circle r="46" cy="-26" fill="url(#hx-halo)"/><path class="flame" style="animation-delay:${f(-i * 0.4)}s" fill="url(#hx-flame)" d="M0 -40c6 10 9 17 9 22a9 9 0 0 1-18 0c0-5 3-12 9-22z"/></g>
+</g></g>`
+  }).join('')
+
+  return `<g class="night">${stars}${candles}</g>`
+}
+
+const DEFS = `<defs>
+<radialGradient id="hx-paper" cx="50%" cy="46%" r="75%"><stop offset="0" class="p0"/><stop offset=".62" class="p1"/><stop offset="1" class="p2"/></radialGradient>
+<linearGradient id="hx-spine" x1="0" x2="1" y1="0" y2="0"><stop offset=".8" class="s0"/><stop offset="1" class="s1"/></linearGradient>
+<radialGradient id="hx-fox"><stop offset="0" class="f0"/><stop offset="1" class="f1"/></radialGradient>
+<radialGradient id="hx-candlelight"><stop offset="0" class="g0"/><stop offset="1" class="g1"/></radialGradient>
+<radialGradient id="hx-soak"><stop offset="0" class="k0"/><stop offset="1" class="k1"/></radialGradient>
+<linearGradient id="hx-candle-body" x1="0" x2="1"><stop offset="0" class="cb0"/><stop offset="1" class="cb1"/></linearGradient>
+<radialGradient id="hx-flame" cx="50%" cy="70%" r="60%"><stop offset="0" class="fl0"/><stop offset=".5" class="fl1"/><stop offset="1" class="fl2"/></radialGradient>
+<radialGradient id="hx-halo"><stop offset="0" class="halo0"/><stop offset="1" class="halo1"/></radialGradient>
+</defs>`
+
+function edges(state: SceneState): string {
   const spot =
-    bloomIndex === undefined ? undefined : BLOOM_SPOTS[((bloomIndex % BLOOM_COUNT) + BLOOM_COUNT) % BLOOM_COUNT]
-  const ink = (side: 'left' | 'right') => (spot !== undefined && spot[0] === side ? bloomAt(spot[1], spot[2]) : '')
+    state.bloom === undefined ? undefined : BLOOM_SPOTS[((state.bloom % BLOOM_COUNT) + BLOOM_COUNT) % BLOOM_COUNT]
+  const ink = (side: 'left' | 'right') =>
+    spot !== undefined && spot[0] === side ? bloomAt(state.bloom ?? 0, spot[1], spot[2]) : ''
 
   return [
     '<g class="edge-l">',
-    `<rect x="-600" width="750" height="${H}" fill="url(#oh-spine)"/>`,
-    `<line class="margin" x1="176" y1="0" x2="176" y2="${H}"/>`,
-    OLD_INK_LEFT,
+    `<rect x="-600" width="750" height="${H}" fill="url(#hx-spine)"/>`,
+    OLD_BLOT,
+    footprints(),
     ink('left'),
     '</g>',
     '<g class="edge-r">',
-    OLD_INK_RIGHT,
+    SEAL,
+    state.writing === undefined ? '' : hand(state.writing),
     ink('right'),
     '</g>',
   ].join('')
 }
 
-function page(): string {
-  return [
-    `<rect width="${W}" height="${H}" fill="url(#oh-paper)"/>`,
-    foxing(),
-    rules(),
-    `<ellipse class="glow" cx="1380" cy="900" rx="760" ry="560" fill="url(#oh-candle)"/>`,
-  ].join('')
-}
-
-// The spine's gradient runs dark at x=0 of its own box, which starts 600 left of the page, so the shadow stays
-// against the window's left edge after the group slides in.
-const DEFS = `<defs>
-<radialGradient id="oh-paper" cx="50%" cy="46%" r="75%"><stop offset="0" class="p0"/><stop offset=".62" class="p1"/><stop offset="1" class="p2"/></radialGradient>
-<linearGradient id="oh-spine" x1="0" x2="1" y1="0" y2="0"><stop offset=".8" class="s0"/><stop offset="1" class="s1"/></linearGradient>
-<radialGradient id="oh-fox"><stop offset="0" class="f0"/><stop offset="1" class="f1"/></radialGradient>
-<radialGradient id="oh-candle"><stop offset="0" class="g0"/><stop offset="1" class="g1"/></radialGradient>
-<radialGradient id="oh-ink"><stop offset="0" class="k0"/><stop offset=".55" class="k1"/><stop offset="1" class="k2"/></radialGradient>
-</defs>`
-
-/** The page alone, or the page with a drop of ink soaking into a margin. */
-export function scene(bloomIndex?: number): string {
+/** The page, with whatever it is doing now. */
+export function scene(state: SceneState = {}): string {
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice">`,
     `<style>${STYLE}</style>`,
     DEFS,
-    page(),
-    edges(bloomIndex),
+    `<rect width="${W}" height="${H}" fill="url(#hx-paper)"/>`,
+    foxing(),
+    fibres(),
+    tides(),
+    `<ellipse class="glow" cx="1380" cy="900" rx="760" ry="560" fill="url(#hx-candlelight)"/>`,
+    night(state.entering === true),
+    edges(state),
+    state.entering === true ? `<rect class="veil enter" width="${W}" height="${H}"/>` : '',
     '</svg>',
   ].join('')
 }

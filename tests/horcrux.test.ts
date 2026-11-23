@@ -5,16 +5,16 @@ import { WRITING, WRITTEN, pick } from '../hooks/register'
 import { BLOOM_COUNT, bloomSpots, edgeShift, scene, visibleBox } from '../hooks/scene'
 
 const start: SessionStartInput = { surface: 'desktop', isInteractive: true, cwd: '/work' }
-const run = (args: string): CommandRunInput => ({
-  command: 'otherhand',
-  args,
+const run = (command: 'lumos' | 'nox'): CommandRunInput => ({
+  command,
+  args: '',
   origin: { kind: 'composer' },
   presentation: { isFullscreen: false, columns: 80 },
 })
 // The test environment has timers, but this project's tsconfig loads no DOM or Node types.
 declare const setTimeout: (fn: () => void, ms: number) => unknown
 
-const page = { scene: 'page', plugin: 'otherhand', glass: { blur: 10, opacity: 0.6 } } as const
+const page = { scene: 'page', plugin: 'horcrux', glass: { blur: 10, opacity: 0.6 } } as const
 const spinner = { word: 'Sauteing', message: null, suffix: '…', mode: 'responding' } as const
 const BLANK: RenderElement = { type: 'Box', props: {}, children: [] } as unknown as RenderElement
 
@@ -86,20 +86,20 @@ describe('the look', () => {
 
     expect(sets).toHaveLength(0)
 
-    await $.command.run(run('on'))
+    await $.command.run(run('lumos'))
 
     expect(sets).toHaveLength(1)
     expect(sets[0]?.sound).toBeDefined()
   })
 
-  test('/otherhand off closes the diary, says so to you alone, and stays closed next session', async ($, on) => {
+  test('/nox closes the diary, says so to you alone, and stays closed next session', async ($, on) => {
     const sets: ThemeSetArgs[] = []
     const stubs = engine(on, sets)
 
     await $.session.start(start)
-    const closed = await $.command.run(run('off'))
+    const closed = await $.command.run(run('nox'))
 
-    expect(closed.text).toContain('closes')
+    expect(closed.text).toContain('Nox')
     expect(closed.isTextDisplayOnly).toBe(true)
     expect(stubs.store.get('off')).toBe(true)
     expect(stubs.clears()).toBe(1)
@@ -107,9 +107,9 @@ describe('the look', () => {
     await $.session.start(start)
     expect(sets).toHaveLength(1)
 
-    const opened = await $.command.run(run('on'))
+    const opened = await $.command.run(run('lumos'))
 
-    expect(opened.text).toContain('open')
+    expect(opened.text).toContain('Lumos')
     expect(sets).toHaveLength(2)
   })
 
@@ -118,11 +118,11 @@ describe('the look', () => {
     const stubs = engine(on, sets)
 
     await $.session.start(start)
-    await $.command.run(run('off'))
+    await $.command.run(run('nox'))
     stubs.store.set('off', false)
-    const again = await $.command.run(run('off'))
+    const again = await $.command.run(run('nox'))
 
-    expect(again.text).toContain('stays closed')
+    expect(again.text).toContain('stays dark')
     expect(stubs.clears()).toBe(1)
     expect(stubs.store.get('off')).toBe(true)
   })
@@ -133,22 +133,13 @@ describe('the look', () => {
 
     on('ui.render', { component: 'Backdrop' }, () => BLANK)
     await $.session.start(start)
-    await $.ui.mount({ plugin: 'otherhand', surface: 'desktop', component: 'Backdrop', props: { ...page, plugin: 'lagoon-mod' } })
-    await $.command.run(run('off'))
+    await $.ui.mount({ plugin: 'horcrux', surface: 'desktop', component: 'Backdrop', props: { ...page, plugin: 'lagoon-mod' } })
+    await $.command.run(run('nox'))
 
     expect(stubs.clears()).toBe(0)
     expect(stubs.store.get('off')).toBe(true)
   })
 
-  test('an unknown word gets the usage line and changes nothing', async ($, on) => {
-    const sets: ThemeSetArgs[] = []
-    const stubs = engine(on, sets)
-
-    const answer = await $.command.run(run('sideways'))
-
-    expect(answer.text).toContain('/otherhand on')
-    expect(stubs.store.has('off')).toBe(false)
-  })
 })
 
 describe('the ink', () => {
@@ -159,7 +150,7 @@ describe('the ink', () => {
     engine(on, sets)
     await $.session.start(start)
 
-    const ui = await $.ui.mount({ plugin: 'otherhand', surface: 'desktop', component: 'Backdrop', props: page })
+    const ui = await $.ui.mount({ plugin: 'horcrux', surface: 'desktop', component: 'Backdrop', props: page })
 
     expect(JSON.stringify(await ui.drawn())).not.toContain('class=\\"bloom\\"')
 
@@ -182,7 +173,7 @@ describe('the ink', () => {
     await $.turn.start({ text: 'hello', turnId: 't1' })
     await clock.advance(4000)
 
-    const ui = await $.ui.mount({ plugin: 'otherhand', surface: 'desktop', component: 'Backdrop', props: page })
+    const ui = await $.ui.mount({ plugin: 'horcrux', surface: 'desktop', component: 'Backdrop', props: page })
 
     expect(JSON.stringify(await ui.drawn())).not.toContain('class=\\"bloom\\"')
   })
@@ -194,7 +185,7 @@ describe('the ink', () => {
     engine(on, sets)
     await $.session.start(start)
 
-    const ui = await $.ui.mount({ plugin: 'otherhand', surface: 'desktop', component: 'Backdrop', props: page })
+    const ui = await $.ui.mount({ plugin: 'horcrux', surface: 'desktop', component: 'Backdrop', props: page })
 
     await $.turn.start({ text: 'look around', turnId: 't2', agentId: 'sub1' })
 
@@ -212,9 +203,47 @@ describe('the ink', () => {
       return BLANK
     })
     await $.session.start(start)
-    await $.ui.mount({ plugin: 'otherhand', surface: 'desktop', component: 'Backdrop', props: { ...page, plugin: 'lagoon-mod' } })
+    await $.ui.mount({ plugin: 'horcrux', surface: 'desktop', component: 'Backdrop', props: { ...page, plugin: 'lagoon-mod' } })
 
     expect(seen).toEqual(['lagoon-mod'])
+  })
+})
+
+describe('the other hand', () => {
+  test('while Claude replies the margin fills with script, then it sinks away and is gone', async ($, on) => {
+    const sets: ThemeSetArgs[] = []
+    const clock = mock.clock(on)
+
+    engine(on, sets)
+    on('turn.complete', ($, e) => ({ text: e.answer }))
+    await $.session.start(start)
+    await clock.advance(7000)
+
+    const ui = await $.ui.mount({ plugin: 'horcrux', surface: 'desktop', component: 'Backdrop', props: page })
+
+    await $.turn.start({ text: 'hello', turnId: 't1' })
+    expect(JSON.stringify(await ui.drawn())).toContain('hand w')
+
+    await $.turn.complete({ answer: 'hi', durationMs: 900, isAborted: false, turnId: 't1', reason: 'answer' })
+    expect(JSON.stringify(await ui.drawn())).toContain('class=\\"gone\\"')
+
+    await clock.advance(3000)
+    expect(JSON.stringify(await ui.drawn())).not.toContain('class=\\"hand')
+  })
+
+  test('/lumos lights the page up, then the light settles', async ($, on) => {
+    const sets: ThemeSetArgs[] = []
+    const clock = mock.clock(on)
+
+    engine(on, sets)
+    await $.session.start(start)
+
+    const ui = await $.ui.mount({ plugin: 'horcrux', surface: 'desktop', component: 'Backdrop', props: page })
+
+    expect(JSON.stringify(await ui.drawn())).toContain('veil enter')
+
+    await clock.advance(6500)
+    expect(JSON.stringify(await ui.drawn())).not.toContain('veil enter')
   })
 })
 
@@ -235,13 +264,13 @@ describe('the terminal', () => {
       return BLANK
     })
     await $.session.start({ ...start, surface: 'terminal' })
-    const spin = await $.ui.mount({ plugin: 'otherhand', surface: 'terminal', component: 'Spinner', props: spinner })
-    const line = await $.ui.mount({ plugin: 'otherhand', surface: 'terminal', component: 'TurnDuration', props: { word: 'Baked', durationMs: 3000 } })
+    const spin = await $.ui.mount({ plugin: 'horcrux', surface: 'terminal', component: 'Spinner', props: spinner })
+    const line = await $.ui.mount({ plugin: 'horcrux', surface: 'terminal', component: 'TurnDuration', props: { word: 'Baked', durationMs: 3000 } })
 
     expect(WRITING).toContain(words[0]?.slice(5) as (typeof WRITING)[number])
     expect(WRITTEN).toContain(words[1]?.slice(5) as (typeof WRITTEN)[number])
 
-    await $.command.run(run('off'))
+    await $.command.run(run('nox'))
     await spin.drawn()
     await line.drawn()
     await new Promise<void>(resolve => setTimeout(() => resolve(), 150))
@@ -254,7 +283,7 @@ describe('the terminal', () => {
 
 describe('the scene', () => {
   test('every page fits the engine and holds no picture', () => {
-    for (const svg of [scene(), ...Array.from({ length: BLOOM_COUNT }, (_, i) => scene(i))]) {
+    for (const svg of [scene(), ...Array.from({ length: BLOOM_COUNT }, (_, i) => scene({ bloom: i })), scene({ writing: 'on' }), scene({ writing: 'sinking' }), scene({ entering: true })]) {
       expect(svg.length).toBeLessThan(131_072)
       expect(svg).not.toContain('<image')
       expect(svg).not.toContain('href')

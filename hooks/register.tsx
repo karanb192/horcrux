@@ -2,11 +2,15 @@ import type { EngineInterface, Register, ThemeResult } from 'claude-code'
 
 import { COLOR_PROBLEMS, PAGE, lookFor } from './look'
 import { BLOOM_COUNT, scene } from './scene'
+import type { SceneState } from './scene'
 
-const PLUGIN = 'otherhand'
-const COMMAND = 'otherhand'
+const PLUGIN = 'horcrux'
+const OPEN = 'lumos'
+const CLOSE = 'nox'
 const OFF_KEY = 'off'
 const BLOOM_MS = 3800
+const SINK_MS = 2600
+const ENTER_MS = 6000
 
 // Words for the terminal's spinner while Claude works. Each reads as something a diary does, never as a plain
 // status verb, so the line gets noticed.
@@ -63,10 +67,16 @@ let ours = false
 // that attaches later draws the page first and so turns this on.
 let seen = false
 
-// The drop of ink soaking in now, by its spot, and the timer that dries it.
+// What the page is doing now, and the timers that end each part of it.
+type Timer = { cancel: () => void }
+
 let bloom: number | undefined
 let blooms = 0
-let drying: { cancel: () => void } | undefined
+let drying: Timer | undefined
+let writing: SceneState['writing']
+let sinking: Timer | undefined
+let entering = false
+let settling: Timer | undefined
 
 /** A stable pick from a list, so one spinner word maps to one diary word for the whole session. */
 export function pick<T>(list: readonly T[], seed: string): T {
@@ -89,7 +99,7 @@ async function readOff($: EngineInterface): Promise<boolean> {
     off = (await $.store.get(OFF_KEY)) === true
   } catch (error) {
     off = false
-    $.ui.log(`otherhand: could not read the on/off setting, so the diary stays open: ${String(error)}`, { to: 'debug' })
+    $.ui.log(`horcrux: could not read the on/off setting, so the diary stays open: ${String(error)}`, { to: 'debug' })
   }
 
   return off
@@ -136,12 +146,54 @@ async function setLook($: EngineInterface): Promise<ThemeResult> {
   return set
 }
 
+/** Sets the look, and lights the page: dim to bright, and at night the candles catch one by one. */
 async function open($: EngineInterface): Promise<ThemeResult> {
   const set = await setLook($)
 
   ours = true
+  settling?.cancel()
+  entering = true
+  $.ui.invalidate('ui.render')
+  settling = $.clock.after(ENTER_MS, () => {
+    entering = false
+    settling = undefined
+    $.ui.invalidate('ui.render')
+  })
 
   return set
+}
+
+/** While Claude replies, the other hand writes in the right margin; when the reply ends, its words sink away. */
+function startWriting($: EngineInterface): void {
+  sinking?.cancel()
+  sinking = undefined
+  writing = 'on'
+  $.ui.invalidate('ui.render')
+}
+
+function stopWriting($: EngineInterface): void {
+  if (writing !== 'on') {
+    return
+  }
+
+  writing = 'sinking'
+  $.ui.invalidate('ui.render')
+  sinking = $.clock.after(SINK_MS, () => {
+    writing = undefined
+    sinking = undefined
+    $.ui.invalidate('ui.render')
+  })
+}
+
+function quiet(): void {
+  for (const timer of [drying, sinking, settling]) {
+    timer?.cancel()
+  }
+
+  drying = sinking = settling = undefined
+  bloom = undefined
+  writing = undefined
+  entering = false
 }
 
 /**
@@ -160,81 +212,86 @@ function startBloom($: EngineInterface): void {
   })
 }
 
-async function command($: EngineInterface, args: string): Promise<string> {
-  const word = args.trim().toLowerCase()
+/** `/lumos` opens the diary and `/nox` closes it. Either answer is shown to you alone. */
+async function spell($: EngineInterface, name: typeof OPEN | typeof CLOSE): Promise<string> {
   const closed = await isOff($)
-  const wantOff = word === 'off' ? true : word === 'on' ? false : word === '' ? !closed : undefined
 
-  if (wantOff === undefined) {
-    return 'Try /otherhand, /otherhand on or /otherhand off.'
-  }
-
-  if (wantOff) {
+  if (name === CLOSE) {
     if (!closed && ours) {
       await $.theme.clear()
     }
 
     ours = false
-    drying?.cancel()
-    bloom = undefined
+    quiet()
     off = true
-    // Saved even when nothing showed: an explicit off is also the default for new sessions.
+    // Saved even when nothing showed: an explicit close is also the default for new sessions.
     await $.store.set(OFF_KEY, true)
     $.ui.invalidate('ui.render')
 
-    return closed ? 'The diary stays closed, in new sessions too.' : 'The diary closes. /otherhand opens it again.'
+    return closed ? 'Nox. The diary was already dark, and stays dark in new sessions too.' : 'Nox. The diary closes. /lumos opens it again.'
   }
 
   const set = await open($)
 
   off = false
   await $.store.set(OFF_KEY, false)
-  $.ui.invalidate('ui.render')
 
   return set.isDrawn
-    ? 'The diary is open. Write something.'
-    : 'The diary is open, but this window draws no page. The page shows in the Claude desktop app; the terminal keeps the diary words.'
+    ? 'Lumos. The diary is open. Write something.'
+    : 'Lumos. The diary is open, but this window draws no page: the page shows in the Claude desktop app. Here you get the diary\'s words.'
 }
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const started = await next(e)
 
-    await $.command.register({
-      name: COMMAND,
-      description: 'Open or close the diary. Add "on" or "off".',
-      argumentHint: '[on|off]',
-    })
+    await $.command.register({ name: OPEN, description: 'Open the diary: an old page, ink and candlelight (horcrux)' })
+    await $.command.register({ name: CLOSE, description: 'Close the diary and bring back the plain app (horcrux)' })
 
     const unpainted = COLOR_PROBLEMS.find(line => line.startsWith("Desktop won't paint"))
 
     if (unpainted !== undefined) {
-      $.ui.log(`otherhand: ${unpainted}`, { to: 'debug' })
+      $.ui.log(`horcrux: ${unpainted}`, { to: 'debug' })
     }
 
     if (!(await readOff($))) {
       try {
         await open($)
       } catch (error) {
-        $.ui.log(`otherhand: ${String(error)}`, { to: 'debug' })
+        $.ui.log(`horcrux: ${String(error)}`, { to: 'debug' })
       }
     }
 
     return started
   })
 
-  // The main conversation's turns only: a subagent starting its own turn is not you writing.
+  // The main conversation's turns only: a subagent starting its own turn is not you writing. Only `agentId` is read;
+  // the prompt and the reply these events carry are never looked at.
   on('turn.start', async ($, e, next) => {
     if (e.agentId === undefined && off !== true && ours && seen) {
       startBloom($)
+      startWriting($)
     }
 
     return next(e)
   })
 
-  // Shown to you alone: the command's answer never goes to the model.
-  on('command.run', { command: COMMAND }, async ($, e) => ({
-    text: await command($, e.args).catch((error: unknown) => `otherhand: ${String(error)}`),
+  on('turn.complete', async ($, e, next) => {
+    if (e.agentId === undefined) {
+      stopWriting($)
+    }
+
+    return next(e)
+  })
+
+  // Shown to you alone: the answers never go to the model.
+  on('command.run', { command: OPEN }, async ($) => ({
+    text: await spell($, OPEN).catch((error: unknown) => `horcrux: ${String(error)}`),
+    isTextDisplayOnly: true,
+  }))
+
+  on('command.run', { command: CLOSE }, async ($) => ({
+    text: await spell($, CLOSE).catch((error: unknown) => `horcrux: ${String(error)}`),
     isTextDisplayOnly: true,
   }))
 
@@ -253,7 +310,12 @@ export const register: Register = on => {
 
     const { Svg } = $.ui.resolve(e)
 
-    return <Svg alt="An old diary page, lined, with a few ink blots" source={scene(bloom)} />
+    return (
+      <Svg
+        alt="An old diary page, blank and water-stained, with a wax seal; at night, floating candles"
+        source={scene({ bloom, writing, entering })}
+      />
+    )
   })
 
   on('ui.render', { component: 'Spinner' }, async ($, e, next) => {
