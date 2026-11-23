@@ -278,6 +278,19 @@ describe('the scene', () => {
     }
   })
 
+  test('the diary words are distinct, short enough for a narrow terminal, and never the plain ones', () => {
+    for (const list of [WRITING, WRITTEN]) {
+      expect(new Set(list).size).toBe(list.length)
+
+      for (const word of list) {
+        expect(word.length).toBeLessThanOrEqual(30)
+      }
+    }
+
+    expect(WRITTEN).not.toContain('Written' as (typeof WRITTEN)[number])
+    expect(WRITTEN).not.toContain('Penned' as (typeof WRITTEN)[number])
+  })
+
   test('one spinner word always maps to the same diary word', () => {
     expect(pick(WRITING, 'Sauteing')).toBe(pick(WRITING, 'Sauteing'))
     expect(WRITING).toContain(pick(WRITING, 'Sauteing'))

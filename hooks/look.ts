@@ -38,18 +38,20 @@ const made = makeColors({
 
 export const COLOR_PROBLEMS: readonly string[] = made.problems
 
-// Your words in blue-black fountain-pen ink; the other hand in brown-black iron gall.
+// Your words in blue-black fountain-pen ink; the other hand in brown-black iron gall. Each message's ground is
+// the page's own colour where the conversation sits, so the words read as written on the page, not on a slip.
+// Light was measured in the desktop app; dark is from a render of the scene, to be checked in the app.
 const MESSAGE_INK = {
   light: {
-    'bg-user-message': '#f2e7cc',
+    'bg-user-message': '#eee5ca',
     'text-user-message': '#1d2a45',
-    'bg-assistant-message': '#f2e7cc',
+    'bg-assistant-message': '#eee5ca',
     'text-assistant-message': '#2a1a0d',
   },
   dark: {
-    'bg-user-message': '#251c14',
+    'bg-user-message': '#352819',
     'text-user-message': '#c9d6f0',
-    'bg-assistant-message': '#251c14',
+    'bg-assistant-message': '#352819',
     'text-assistant-message': '#f0dfbf',
   },
 } as const
