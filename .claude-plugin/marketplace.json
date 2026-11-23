@@ -1,15 +1,15 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "otherhand",
-  "description": "Otherhand, a Tom Riddle's diary theme for Claude Code.",
+  "name": "horcrux",
+  "description": "Horcrux: Tom Riddle's diary for Claude Code.",
   "owner": { "name": "Karan Bansal", "url": "https://github.com/karanb192" },
   "plugins": [
     {
-      "name": "otherhand",
+      "name": "horcrux",
       "source": "./",
-      "description": "A Tom Riddle's diary theme for Claude Code: an old page, ink that soaks in, and a second hand that writes back. Draws only; adds no tokens, no network.",
+      "description": "Turn Claude Code into Tom Riddle's diary: an old page, ink that soaks in, a second hand that writes back, floating candles at night. Draws only; no tokens, no network.",
       "category": "themes",
-      "tags": ["mods", "theme", "diary", "desktop"]
+      "tags": ["mods", "theme", "harry-potter", "diary", "desktop"]
     }
   ]
 }

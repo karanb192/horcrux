@@ -1,70 +1,71 @@
-# Otherhand
+# Horcrux
 
-**Tom Riddle's diary, for your coding agent.** You write on an old page, a drop of ink soaks into the margin, and a second hand writes back in cursive.
+**Turn Claude Code into Tom Riddle's diary.**
+
+A horcrux is a piece of a soul, hidden in an object. This one hides Claude in an old diary.
+Write on the page and your ink sinks into the paper; a moment later, a second hand writes back.
+`/lumos` opens the diary. `/nox` closes it, if it starts to scare you.
 
 <!-- Hero: a real screen recording of the Claude desktop app goes here. -->
 
-A theme mod for [Claude Code](https://code.claude.com/docs/en/plugins/mods/overview). It draws only: it adds no tokens to your conversation, makes no network calls and runs no processes.
+A theme mod for [Claude Code](https://code.claude.com/docs/en/plugins/mods/overview), made for the **Claude desktop app**. It only draws: it adds no tokens to your conversation, makes no network calls and runs no processes.
 
 ## Install
 
 Needs Claude Code 2.1.330 or later.
 
 ```sh
-claude plugin marketplace add karanb192/otherhand
-claude plugin install otherhand@otherhand
+claude plugin marketplace add karanb192/horcrux
+claude plugin install horcrux@horcrux
 ```
 
-Then open a new session, or run `/reload-plugins` in an open one.
+Open a new session in the desktop app's Code tab, or run `/reload-plugins` in an open one. Then type `/lumos`.
 
-## What you get
+## What happens
 
-In the **Claude desktop app** (the Code tab):
-
-1. **The page.** An aged, lined diary page behind the conversation, with old ink blots and foxing at the edges. At night it is the same page by candlelight, with a slow flicker.
-2. **The second hand.** Claude's replies and your messages in cursive, written straight on the page, each in its own ink: yours blue-black, the diary's brown-black.
-3. **Ink that soaks in.** Each time you write, a drop of ink lands in a margin, spreads and sinks into the paper. The margins slide in with the window, so the ink stays whole from a tall window to a 3.5:1 ultrawide.
-4. **Sound, if you want it.** A quiet room with a candle, a nib touching the page when you send, a quill stroke for each tool call, a page turning when the conversation compacts. Off until you press the speaker in the session's title bar.
-
-The **Claude mobile app** draws the page and the ink too, under its own veil; the cursive type and the sound are the desktop app's alone.
-
-In the **terminal**, which draws no themes, the spinner and the line that closes each turn speak the diary's words: "Dipping the quill…", "Soaking in your words…", "Scrawled for 12s". The editor extensions get neither.
+1. **Lumos.** The page lights up as if someone struck a lamp. At night, floating candles catch one by one under a ceiling of faint stars.
+2. **The page.** An old diary page: blank, yellowed, once soaked through and dried, sealed with red wax in the corner. Something small and unseen walks up the margin, one footprint at a time.
+3. **Your ink sinks in.** Each time you write, a drop of ink lands in a margin, creeps out along the paper's fibres and sinks away.
+4. **The other hand writes back.** While Claude replies, lines of script write themselves into the margin. When the reply is done, they sink into the paper too.
+5. **Two hands, two inks.** Your words in blue-black, Claude's in brown-black, both in cursive, straight on the page.
+6. **Sound, if you want it.** A quiet room with a candle, a nib when you send, a quill stroke for each tool call, a page turning when the conversation compacts, and once in a while an owl, far off. Off until you press the speaker in the session's title bar.
 
 Code blocks, diffs, permission prompts and questions keep the app's own look, so nothing you need to read carefully ever turns cursive. Your accessibility settings win over the theme.
+
+**Mobile app:** the page, the candles and the ink draw there too, under its own veil; the cursive type and the sound are the desktop app's alone.
+
+**Terminal:** terminals draw no themes, so there the spinner and the line that closes each turn speak the diary's words instead: "Dipping the quill…", "Listening through the paper…", "Scrawled for 12s". The editor extensions get nothing.
 
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `/otherhand` | Close the diary if it is open, open it if it is closed |
-| `/otherhand off` | Close the diary: the app's own look comes back, and new sessions stay closed |
-| `/otherhand on` | Open it again |
+| `/lumos` | Open the diary. New sessions open it by themselves until you close it |
+| `/nox` | Close the diary: the app's own look comes back, and new sessions stay closed |
 
 ## What it can access
 
 | | |
 |---|---|
-| Reads | Its own on/off setting |
-| Writes | Its own on/off setting |
-| Sees | The backdrop, the spinner and the turn line it draws, and the start of each turn. A turn's event carries your prompt; Otherhand only checks whether the turn is the main conversation's, and never reads, keeps or sends the prompt |
+| Reads and writes | Its own open/closed setting |
+| Sees | The backdrop, the spinner and the turn line it draws, and the start and end of each turn. Those turn events carry your prompt and Claude's reply; Horcrux only checks whether the turn is the main conversation's, and never reads, keeps or sends either |
 | Network | None |
-| Tokens | None. Even `/otherhand`'s answers are shown to you alone and never sent to the model |
+| Tokens | None. Even `/lumos` and `/nox` answer you alone and never reach the model |
 
 `claude plugin validate` prints this footprint before anything runs.
 
 ## Limits
 
-- The cursive type and the sound need the Claude desktop app; the mobile app draws the page and the ink. The terminal gets the diary's words only, and the editor extensions get nothing.
-- One theme shows at a time. Another mod that sets a theme replaces this one, and Otherhand never takes it back. `/otherhand off` clears the theme only while it believes the page is its own, but it can only see themes that draw a moving scene: if you picked a plain-colour theme after Otherhand in the same session, `/otherhand off` clears that one too.
-- `/otherhand` typed while Claude is working runs when the turn ends.
-- Fonts are the system's generic cursive font. The theme API takes generic families only, so the handwriting looks different on different machines.
-- If you ask your system for reduced motion, the page holds still and the ink does not bloom.
+- The cursive type and the sound need the Claude desktop app. The cursive is your system's generic cursive font, because the theme API takes generic font families only, so the handwriting looks different on different machines.
+- One theme shows at a time. Another mod that sets a theme replaces this one, and Horcrux never takes it back. `/nox` clears the theme only while it believes the page is its own, but it can only see themes that draw a moving scene: if you picked a plain-colour theme after Horcrux in the same session, `/nox` clears that one too.
+- `/lumos` or `/nox` typed while Claude is working runs when the turn ends.
+- If you ask your system for reduced motion, the page holds still: no candles bobbing, no footprints, no ink.
 
 ## Credits
 
-The idea of a diary that writes back is Tom Riddle's diary from *Harry Potter and the Chamber of Secrets*. Otherhand is a fan homage with its own art, words and sounds. It uses no names, images or text from the books or films, and is not affiliated with or endorsed by J.K. Rowling, Warner Bros. or anyone connected to them.
+Inspired by Tom Riddle's diary in J.K. Rowling's *Harry Potter and the Chamber of Secrets*. Horcrux is a free fan homage with its own art, words and sounds; it is not affiliated with or endorsed by J.K. Rowling, Warner Bros. or anyone connected to them.
 
-The first great version of this idea is [Riddle](https://github.com/MaximeRivest/riddle) by Maxime Rivest, which turns a reMarkable tablet into the diary. Otherhand brings the same feeling to Claude Code.
+The first great version of a diary that writes back is [Riddle](https://github.com/MaximeRivest/riddle) by Maxime Rivest, which turns a reMarkable tablet into the diary.
 
 `hooks/make-colors.js` and `hooks/make-colors.d.ts` are copied unchanged from Claude Code's own plugin-authoring guide, which tells mod authors to copy them.
 

@@ -6,8 +6,8 @@ export const PAGE = 'page'
 
 // An aged page by day; the same page by candlelight at night. Iron-gall ink, never pure black.
 const made = makeColors({
-  label: 'Otherhand',
-  id: 'otherhand',
+  label: 'Horcrux',
+  id: 'horcrux',
   roles: { accent: '#7a2e1f', danger: '#a3322a', success: '#4f6b2f', warning: '#9a6a14', pro: '#4a3b6b' },
   light: {
     gray: {
@@ -98,6 +98,8 @@ export const SOUND: Sound = {
       { wave: 'brown', drone: true, gain: 0.2, filter: { type: 'lowpass', hz: 420 } },
       // The candle: a soft crackle, now and then.
       { wave: 'crackle', scatter: 0.3, attack: 0.002, release: 0.08, gain: 0.07, filter: { type: 'lowpass', hz: 2400 } },
+      // Far off, rarely, an owl.
+      { wave: 'triangle', notes: ['F4', 'F4', 'D4'], step: 0.38, scatter: 0.02, glide: -2, attack: 0.04, release: 0.32, gain: 0.05, filter: { type: 'lowpass', hz: 900 } },
     ],
   },
   cues: {
