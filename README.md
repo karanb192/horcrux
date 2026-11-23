@@ -23,7 +23,7 @@ Open a new session in the desktop app's Code tab, or run `/reload-plugins` in an
 
 ## What happens
 
-1. **Lumos.** The page lights up as if someone struck a lamp. At night, floating candles catch one by one under a ceiling of faint stars.
+1. **Lumos.** The page lights up as if someone struck a lamp, and floating candles catch one by one. At night they hang under a ceiling of faint stars.
 2. **The page.** An old diary page: blank, yellowed, once soaked through and dried, sealed with red wax in the corner. Something small and unseen walks up the margin, one footprint at a time.
 3. **Your ink sinks in.** Each time you write, a drop of ink lands in a margin, creeps out along the paper's fibres and sinks away.
 4. **The other hand writes back.** While Claude replies, lines of script write themselves into the margin. When the reply is done, they sink into the paper too.
