@@ -60,10 +60,10 @@ function blob(rand: () => number, cx: number, cy: number, r: number, wobble: num
   return `${d}Z`
 }
 
-// Where a drop of ink lands when you write: always the same place in the left margin, so the eye learns it. A drop
-// that moved round the margins read as random. It sits between y=340 and y=660, which a window as wide as 3.5:1 still
-// shows whole.
-const BLOOM_SPOTS: readonly (readonly ['left' | 'right', number, number])[] = [['left', 108, 470]]
+// Where a drop of ink lands when you write: always the same place, low in the right margin, beside your messages and
+// the box you type in, so it reads as your ink going in. A drop that moved round the margins read as random. It sits
+// no lower than y=650, which a window as wide as 3.5:1 still shows whole.
+const BLOOM_SPOTS: readonly (readonly ['left' | 'right', number, number])[] = [['right', 1470, 650]]
 
 export const BLOOM_COUNT = BLOOM_SPOTS.length
 
@@ -268,18 +268,19 @@ function bloomAt(index: number, x: number, y: number): string {
   return `<g class="bloom"><circle cx="${x}" cy="${y}" r="96" fill="url(#hx-soak)"/>${veins}<path class="ink core" d="${core}"/><path class="rim core" d="${core}"/>${specks}</g>`
 }
 
-// The other hand: lines of unreadable script in the right margin, written one after another while Claude replies.
+// The other hand: four lines of unreadable script in the right margin, written one after another while Claude replies.
+// They start right of the lowest candle (1400, 300) and stop above where your drop lands.
 // When the reply ends they keep writing as they sink away: drawing them whole there made every line appear at once.
 function hand(state: 'on' | 'sinking'): string {
   const rand = rng(57)
   let s = ''
 
-  for (let line = 0; line < 6; line += 1) {
-    const y = 360 + line * 56
-    let d = `M1416 ${y}`
-    let x = 1416
+  for (let line = 0; line < 4; line += 1) {
+    const y = 400 + line * 52
+    let d = `M1444 ${y}`
+    let x = 1444
 
-    while (x < 1560) {
+    while (x < 1572) {
       const step = 9 + rand() * 9
       const up = 6 + rand() * 12
 
