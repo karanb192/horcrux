@@ -76,13 +76,14 @@ function withMessageInk(colors: ThemeSetArgs['colors']): ThemeSetArgs['colors'] 
 
 const COLORS = withMessageInk(made.theme)
 
-// Semibold, because the app draws message text with thin smoothing: at regular weight the cursive reads faint, and
-// semibold comes closest to the drawn /lumos and /nox lines (checked side by side in Chromium).
-const WRITTEN = { fontFamily: ['cursive'], fontSize: 21, lineHeight: 32, fontWeight: 'semibold' } as const
+// The system cursive is a display hand, so it needs help over a long reply. The app draws text with thin smoothing,
+// and at regular weight the strokes read faint; semibold alone ran the letters together. Semibold with open spacing
+// read best of four variants rendered side by side (hand.ts draws /lumos and /nox to match).
+const WRITTEN = { fontFamily: ['cursive'], fontSize: 22, lineHeight: 34, fontWeight: 'semibold', letterSpacing: 0.6 } as const
 
 export const STYLE: NonNullable<ThemeSetArgs['style']> = {
   Text: WRITTEN,
-  Heading: { fontFamily: ['cursive'], fontWeight: 'bold' },
+  Heading: { fontFamily: ['cursive'], fontWeight: 'bold', letterSpacing: 0.6 },
   // Each message is a torn scrap of the page. Your lines lean a little, as a hand does; each message keeps the
   // scrap and the slant it gets.
   UserMessage: [

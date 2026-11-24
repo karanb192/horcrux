@@ -3,12 +3,13 @@ import { seedOf, tear } from './paper'
 // The diary's own answers to /lumos and /nox, written in a hand as the messages are. The style that sets the
 // messages' font cannot reach a command's row, so the row is drawn: the words stay in the alt text.
 // The same size and leading as the messages' words (look.ts), so the diary's lines and the messages match.
-const SIZE = 21
-const LINE = 32
-const CHARS = 54
-// A cursive letter at this size runs about 8.7 units wide (measured in a Chromium render); a little over, so the
-// scrap never cuts a word.
-const LETTER = 9.2
+const SIZE = 22
+const LINE = 34
+const SPACING = 0.6
+const CHARS = 52
+// A cursive letter at this size and spacing runs 9.8 to 10.6 units wide, by how many capitals a line holds (measured in a
+// Chromium render); over that, so the scrap never cuts a word.
+const LETTER = 11.2
 const PAD = 15
 
 // The reply's own scrap and ink (look.ts and the theme's surface-0 and border-strong), as the desktop app drew them.
@@ -54,7 +55,7 @@ export function handwriting(text: string): { source: string; width: number; heig
     `.paper{fill:${c.paper}}.band{fill:${c.band}}.edge{stroke:${c.edge}}text{fill:${c.ink}}`
 
   const style = [
-    `text{font-family:cursive;font-size:${SIZE}px}.band{fill-rule:evenodd}.edge{fill:none;stroke-width:1}`,
+    `text{font-family:cursive;font-size:${SIZE}px;font-weight:600;letter-spacing:${SPACING}px}.band{fill-rule:evenodd}.edge{fill:none;stroke-width:1}`,
     paint(LIGHT),
     `@media (prefers-color-scheme: dark){${paint(DARK)}}`,
   ].join('')
