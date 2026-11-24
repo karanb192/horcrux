@@ -11,6 +11,9 @@ const OFF_KEY = 'off'
 const BLOOM_MS = 3800
 const SINK_MS = 2600
 const ENTER_MS = 6000
+const DEATH_MS = 3800
+// Long enough for the app to play the first reply's melody before the plain cue goes back.
+const MELODY_MS = 6000
 
 // Words for the terminal's spinner while Claude works. Each reads as something a diary does, never as a plain
 // status verb, so the line gets noticed.
@@ -21,18 +24,20 @@ export const WRITING = [
   'Remembering',
   'Reading between the lines',
   'Waiting for the ink',
-  'Scratching at the page',
-  'Pressing the nib',
-  'Ink pooling',
   'Soaking in your words',
   'Listening through the paper',
-  'Leafing through old entries',
-  'Whispering in ink',
-  'Smudging the margins',
-  'Turning a yellowed page',
-  'Searching old pages',
-  'Reading your hand',
   'Remembering fifty years back',
+  'Accio-ing the answer',
+  'Consulting the Pensieve',
+  'Brewing a Draught',
+  'Opening the Chamber',
+  'Asking the Sorting Hat',
+  "Checking the Marauder's Map",
+  'Swishing and flicking',
+  'Whispering in Parseltongue',
+  'Waking the Basilisk',
+  'In the Restricted Section',
+  'Lighting the floating candles',
 ] as const
 
 // Words for the line that closes a turn, which the engine draws as "<word> for 3s".
@@ -40,13 +45,15 @@ export const WRITTEN = [
   'Inked',
   'Blotted',
   'Scrawled',
-  'Scribbled',
   'Quilled',
-  'Smudged',
-  'Inscribed',
   'Remembered',
   'Soaked in',
-  'Dried',
+  'Conjured',
+  'Transfigured',
+  'Enchanted',
+  'Charmed',
+  'Brewed',
+  'Summoned',
 ] as const
 
 // The words a build says when it refuses an attribute it does not know, such as `sound` on an older one.
@@ -81,6 +88,14 @@ let settling: Timer | undefined
 // Where this session draws, from its start. Only a terminal session is told the page shows elsewhere: a desktop
 // window can report the theme undrawn for a moment while it attaches, though it draws the page a moment later.
 let surface: string | null = null
+
+// The first reply after the diary opens ends with the melody, once.
+let melody = false
+let unsung: Timer | undefined
+
+// /nox in a window that draws the page: the fang's scene plays, then the theme clears.
+let dying = false
+let dead: Timer | undefined
 
 /** A stable pick from a list, so one spinner word maps to one diary word for the whole session. */
 export function pick<T>(list: readonly T[], seed: string): T {
@@ -117,7 +132,7 @@ async function isOff($: EngineInterface): Promise<boolean> {
 async function setLook($: EngineInterface): Promise<ThemeResult> {
   if (takes === undefined || takes === 'all') {
     try {
-      const set = await $.theme.set(lookFor(PAGE, true, true))
+      const set = await $.theme.set(lookFor(PAGE, true, true, melody))
 
       takes = 'all'
 
@@ -152,6 +167,11 @@ async function setLook($: EngineInterface): Promise<ThemeResult> {
 
 /** Sets the look, and lights the page: dim to bright, and the candles catch one by one. */
 async function open($: EngineInterface): Promise<ThemeResult> {
+  dead?.cancel()
+  dead = undefined
+  dying = false
+  melody = true
+
   const set = await setLook($)
 
   ours = true
@@ -189,12 +209,29 @@ function stopWriting($: EngineInterface): void {
   })
 }
 
+/** After the first reply's melody has played, set the look again with the plain cue, if the page is still ours. */
+function settleMelody($: EngineInterface): void {
+  if (!melody) {
+    return
+  }
+
+  melody = false
+  unsung = $.clock.after(MELODY_MS, () => {
+    unsung = undefined
+
+    if (ours && off !== true) {
+      void setLook($).catch((error: unknown) => $.ui.log(`horcrux: ${String(error)}`, { to: 'debug' }))
+    }
+  })
+}
+
 function quiet(): void {
-  for (const timer of [drying, sinking, settling]) {
+  for (const timer of [drying, sinking, settling, unsung]) {
     timer?.cancel()
   }
 
-  drying = sinking = settling = undefined
+  drying = sinking = settling = unsung = undefined
+  melody = false
   bloom = undefined
   writing = undefined
   entering = false
@@ -221,18 +258,35 @@ async function spell($: EngineInterface, name: typeof OPEN | typeof CLOSE): Prom
   const closed = await isOff($)
 
   if (name === CLOSE) {
-    if (!closed && ours) {
-      await $.theme.clear()
-    }
+    const showDeath = !closed && ours && seen && !dying
 
-    ours = false
     quiet()
     off = true
     // Saved even when nothing showed: an explicit close is also the default for new sessions.
     await $.store.set(OFF_KEY, true)
+
+    if (showDeath) {
+      dying = true
+      $.ui.invalidate('ui.render')
+      dead = $.clock.after(DEATH_MS, () => {
+        dead = undefined
+        dying = false
+        ours = false
+        void $.theme.clear().catch((error: unknown) => $.ui.log(`horcrux: ${String(error)}`, { to: 'debug' }))
+        $.ui.invalidate('ui.render')
+      })
+
+      return 'Nox. A fang through the page, and the diary falls silent. /lumos opens it again.'
+    }
+
+    if (!closed && ours && !dying) {
+      await $.theme.clear()
+    }
+
+    ours = false
     $.ui.invalidate('ui.render')
 
-    return closed ? 'Nox. The diary was already dark, and stays dark in new sessions too.' : 'Nox. The diary closes. /lumos opens it again.'
+    return closed ? 'Nox. The diary was already silent, and stays closed in new sessions too.' : 'Nox. The diary falls silent. /lumos opens it again.'
   }
 
   await open($)
@@ -241,8 +295,8 @@ async function spell($: EngineInterface, name: typeof OPEN | typeof CLOSE): Prom
   await $.store.set(OFF_KEY, false)
 
   return surface === 'terminal'
-    ? 'Lumos. The diary is open. The page and the candles show in the Claude desktop app; here you get the diary\'s words.'
-    : 'Lumos. The diary is open. Write something.'
+    ? 'Lumos. Hello. My name is Tom Riddle. (The page and the candles show in the Claude desktop app; here you get the diary\'s words.)'
+    : 'Lumos. Hello. My name is Tom Riddle. How did you come by my diary?'
 }
 
 export const register: Register = on => {
@@ -285,6 +339,7 @@ export const register: Register = on => {
   on('turn.complete', async ($, e, next) => {
     if (e.agentId === undefined) {
       stopWriting($)
+      settleMelody($)
     }
 
     return next(e)
@@ -319,7 +374,7 @@ export const register: Register = on => {
     return (
       <Svg
         alt="An old diary page, blank and water-stained, with a wax seal; at night, floating candles"
-        source={scene({ bloom, writing, entering })}
+        source={scene({ bloom, writing, entering, dying })}
       />
     )
   })

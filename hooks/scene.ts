@@ -15,6 +15,8 @@ export type SceneState = {
   writing?: 'on' | 'sinking'
   /** The page lighting up after /lumos: dim to bright, and the candles catching one by one. */
   entering?: boolean
+  /** /nox: a basilisk fang stabs the page, ink bleeds from the wound, and the page goes dark. */
+  dying?: boolean
 }
 
 // A fixed sequence, so the page is the same art every time it is drawn.
@@ -135,6 +137,17 @@ const STYLE = `
 .cb0{stop-color:#f4ead2}.cb1{stop-color:#cdbb93}
 .fl0{stop-color:#fff6d8}.fl1{stop-color:#ffb347}.fl2{stop-color:#e0661c}
 .halo0{stop-color:#ffcf7a;stop-opacity:.4}.halo1{stop-color:#ffcf7a;stop-opacity:0}
+.fang{fill:url(#hx-fang);stroke:#4a3a20;stroke-width:2.5;stroke-opacity:.7}
+.fang-lit{fill:#fffaf0;opacity:.35}
+.stab{animation:stab .55s cubic-bezier(.6,0,.9,.4) 1 backwards}
+@keyframes stab{0%{translate:300px -380px}100%{translate:0 0}}
+.wound{transform-box:fill-box;transform-origin:center;animation:bleed 3s ease-out .5s 1 backwards}
+@keyframes bleed{0%{transform:scale(0)}35%{transform:scale(.8)}100%{transform:scale(1.25)}}
+.drip{fill:none;stroke:#140c06;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1;animation:run 2.6s ease-in .8s 1 forwards}
+@keyframes run{0%{stroke-dashoffset:1}100%{stroke-dashoffset:0}}
+.dusk{fill:#0a0604;opacity:0;animation:dusk 3.6s ease-in 1 forwards}
+@keyframes dusk{0%,45%{opacity:0}100%{opacity:.7}}
+.fg0{stop-color:#f4ead2}.fg1{stop-color:#c7ad7a}
 ${edgeRules()}
 @media (prefers-color-scheme: dark){
 .p0{stop-color:#3a2c1d}.p1{stop-color:#251b12}.p2{stop-color:#110b06}
@@ -337,7 +350,37 @@ const DEFS = `<defs>
 <linearGradient id="hx-candle-body" x1="0" x2="1"><stop offset="0" class="cb0"/><stop offset="1" class="cb1"/></linearGradient>
 <radialGradient id="hx-flame" cx="50%" cy="70%" r="60%"><stop offset="0" class="fl0"/><stop offset=".5" class="fl1"/><stop offset="1" class="fl2"/></radialGradient>
 <radialGradient id="hx-halo"><stop offset="0" class="halo0"/><stop offset="1" class="halo1"/></radialGradient>
+<linearGradient id="hx-fang" x1="0" x2="1" y1="1" y2="0"><stop offset="0" class="fg0"/><stop offset="1" class="fg1"/></linearGradient>
 </defs>`
+
+// The wound is in the right margin, clear of the words; the fang comes down from the top right and stays.
+const WOUND_X = 1452
+const WOUND_Y = 520
+
+// A basilisk fang: a long curved tooth, thick at the root, tip at the origin, root up and to the right.
+const FANG =
+  'M0 0C14 -34 30 -88 50 -150C66 -204 98 -272 152 -334C166 -350 184 -362 204 -364C226 -366 246 -352 250 -330' +
+  'C252 -316 246 -304 236 -294C192 -246 160 -190 138 -134C112 -70 66 -22 0 0Z'
+const FANG_LIT = 'M14 -22C40 -70 62 -140 92 -210C110 -252 136 -296 170 -330C150 -290 128 -244 112 -196C92 -132 58 -66 14 -22Z'
+
+function fang(): string {
+  const rand = rng(91)
+  let drips = ''
+
+  for (let i = 0; i < 5; i += 1) {
+    const x = WOUND_X - 40 + i * 20 + (rand() - 0.5) * 8
+    const len = 120 + rand() * 220
+
+    drips += `<path class="drip" pathLength="1" stroke-width="${f(4 + rand() * 6)}" style="animation-delay:${f(0.8 + rand() * 0.6)}s" d="M${f(x)} ${WOUND_Y}q${f((rand() - 0.5) * 12)} ${f(len / 2)} ${f((rand() - 0.5) * 16)} ${f(len)}"/>`
+  }
+
+  return [
+    `<rect class="dusk" x="-600" width="${W + 1200}" height="${H}"/>`,
+    `<g class="wound"><path class="ink" d="${blob(rand, WOUND_X, WOUND_Y, 110, 0.32, 18)}"/><path class="ink" opacity=".55" d="${blob(rand, WOUND_X + 10, WOUND_Y + 8, 165, 0.36, 20)}"/></g>`,
+    drips,
+    `<g class="stab" transform="translate(${WOUND_X} ${WOUND_Y})"><path class="fang" d="${FANG}"/><path class="fang-lit" d="${FANG_LIT}"/></g>`,
+  ].join('')
+}
 
 function edges(state: SceneState): string {
   const spot =
@@ -356,6 +399,7 @@ function edges(state: SceneState): string {
     SEAL,
     state.writing === undefined ? '' : hand(state.writing),
     ink('right'),
+    state.dying === true ? fang() : '',
     '</g>',
   ].join('')
 }

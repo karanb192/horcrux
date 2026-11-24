@@ -145,13 +145,32 @@ export const SOUND: Sound = {
   },
 }
 
+// The opening phrase of the films' celesta theme, on the app's own bell tone: B E. G F# E- B A. One eighth note is
+// one 0.2 s step and 0 is a rest, so the phrase plays and ends inside the 4 s a cue may last. It answers the first
+// reply after the diary opens, once.
+export const MELODY: NonNullable<NonNullable<Sound['cues']>['done']> = {
+  reverb: 0.45,
+  layers: [
+    {
+      wave: 'bell',
+      notes: ['B3', 0, 'E4', 0, 0, 'G4', 'F#4', 0, 'E4', 0, 0, 0, 'B4', 0, 'A4', 0],
+      step: 0.2,
+      attack: 0.004,
+      release: 0.6,
+      gain: 0.16,
+    },
+  ],
+}
+
 const GLASS = { blur: 10 } as const
 
-export function lookFor(scene: string, withSound: boolean, withStyle: boolean): ThemeSetArgs {
+export function lookFor(scene: string, withSound: boolean, withStyle: boolean, withMelody = false): ThemeSetArgs {
+  const sound: Sound = withMelody ? { ...SOUND, cues: { ...SOUND.cues, done: MELODY } } : SOUND
+
   return {
     colors: COLORS,
     backdrop: { scene, glass: GLASS },
     ...(withStyle ? { style: STYLE } : {}),
-    ...(withSound ? { sound: SOUND } : {}),
+    ...(withSound ? { sound } : {}),
   }
 }

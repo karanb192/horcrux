@@ -122,7 +122,7 @@ describe('the look', () => {
     stubs.store.set('off', false)
     const again = await $.command.run(run('nox'))
 
-    expect(again.text).toContain('stays dark')
+    expect(again.text).toContain('already silent')
     expect(stubs.clears()).toBe(1)
     expect(stubs.store.get('off')).toBe(true)
   })
@@ -216,10 +216,52 @@ describe('the spells', () => {
     mock.clock(on)
     engine(on, sets)
     await $.session.start(start)
-    expect((await $.command.run(run('lumos'))).text).toBe('Lumos. The diary is open. Write something.')
+    expect((await $.command.run(run('lumos'))).text).toBe('Lumos. Hello. My name is Tom Riddle. How did you come by my diary?')
 
     await $.session.start({ ...start, surface: 'terminal' })
     expect((await $.command.run(run('lumos'))).text).toContain('desktop app')
+  })
+})
+
+describe('the canon', () => {
+  test('/nox where the page is drawn: a fang stabs it, ink bleeds, and only then the theme clears', async ($, on) => {
+    const sets: ThemeSetArgs[] = []
+    const clock = mock.clock(on)
+    const stubs = engine(on, sets)
+
+    await $.session.start(start)
+
+    const ui = await $.ui.mount({ plugin: 'horcrux', surface: 'desktop', component: 'Backdrop', props: page })
+    const closed = await $.command.run(run('nox'))
+
+    expect(closed.text).toContain('fang')
+    expect(JSON.stringify(await ui.drawn())).toContain('class=\\"fang\\"')
+    expect(stubs.clears()).toBe(0)
+    expect(stubs.store.get('off')).toBe(true)
+
+    await clock.advance(4000)
+    expect(stubs.clears()).toBe(1)
+  })
+
+  test('the first reply after the diary opens ends with the melody, then the plain cue comes back', async ($, on) => {
+    const sets: ThemeSetArgs[] = []
+    const clock = mock.clock(on)
+
+    engine(on, sets)
+    on('turn.complete', ($, e) => ({ text: e.answer }))
+    await $.session.start(start)
+
+    const sung = sets[0]?.sound?.cues?.done?.layers[0]
+
+    expect(sung && 'wave' in sung ? sung.wave : undefined).toBe('bell')
+
+    await $.turn.complete({ answer: 'hi', durationMs: 900, isAborted: false, turnId: 't1', reason: 'answer' })
+    await clock.advance(6500)
+
+    const plain = sets.at(-1)?.sound?.cues?.done?.layers[0]
+
+    expect(sets.length).toBeGreaterThan(1)
+    expect(plain && 'wave' in plain ? plain.wave : undefined).not.toBe('bell')
   })
 })
 
@@ -297,7 +339,7 @@ describe('the terminal', () => {
 
 describe('the scene', () => {
   test('every page fits the engine and holds no picture', () => {
-    for (const svg of [scene(), ...Array.from({ length: BLOOM_COUNT }, (_, i) => scene({ bloom: i })), scene({ writing: 'on' }), scene({ writing: 'sinking' }), scene({ entering: true })]) {
+    for (const svg of [scene(), ...Array.from({ length: BLOOM_COUNT }, (_, i) => scene({ bloom: i })), scene({ writing: 'on' }), scene({ writing: 'sinking' }), scene({ entering: true }), scene({ dying: true })]) {
       expect(svg.length).toBeLessThan(131_072)
       expect(svg).not.toContain('<image')
       expect(svg).not.toContain('href')
