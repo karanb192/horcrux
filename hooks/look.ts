@@ -76,11 +76,13 @@ function withMessageInk(colors: ThemeSetArgs['colors']): ThemeSetArgs['colors'] 
 
 const COLORS = withMessageInk(made.theme)
 
-const WRITTEN = { fontFamily: ['cursive'], fontSize: 21, lineHeight: 32 } as const
+// Semibold, because the app draws message text with thin smoothing: at regular weight the cursive reads faint, and
+// semibold comes closest to the drawn /lumos and /nox lines (checked side by side in Chromium).
+const WRITTEN = { fontFamily: ['cursive'], fontSize: 21, lineHeight: 32, fontWeight: 'semibold' } as const
 
 export const STYLE: NonNullable<ThemeSetArgs['style']> = {
   Text: WRITTEN,
-  Heading: { fontFamily: ['cursive'], fontWeight: 'semibold' },
+  Heading: { fontFamily: ['cursive'], fontWeight: 'bold' },
   // Each message is a torn scrap of the page. Your lines lean a little, as a hand does; each message keeps the
   // scrap and the slant it gets.
   UserMessage: [

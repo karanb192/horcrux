@@ -8,10 +8,11 @@ type ThemeFillVector = Extract<NonNullable<ThemeMessageRule['fill']>, { vector: 
 const BOX = 160
 const SLICE = 16
 const STEP = 2
-const PERIOD = BOX - 2 * SLICE
-const POINTS = BOX / STEP + 1
-const SEAM_A = SLICE / STEP
-const SEAM_B = (BOX - SLICE) / STEP
+
+type Corners = readonly [number, number, number, number]
+
+/** The outline of one torn sheet and the inner edge of its aged band, as SVG path data. */
+export type Tear = { edge: string; band: string }
 
 function random(seed: number): () => number {
   let state = seed >>> 0
@@ -26,61 +27,101 @@ function random(seed: number): () => number {
   }
 }
 
+/** A stable number for a text, so the same answer always gets the same scrap. */
+export function seedOf(text: string): number {
+  let hash = 2166136261
+
+  for (let i = 0; i < text.length; i++) {
+    hash = Math.imul(hash ^ text.charCodeAt(i), 16777619)
+  }
+
+  return hash >>> 0
+}
+
 /**
- * How far the tear bites in at each point along one side, from the box edge: a few slow waves that repeat once per
- * tile, so the seams meet, with fine grain on top.
+ * How far the tear bites in at each point along a side `length` long, from the box edge: a few slow waves that
+ * repeat every `period` from `start`, with fine grain on top. `seam` gives two points that must match.
  */
-function side(next: () => number, low: number, range: number): number[] {
+function side(next: () => number, length: number, low: number, range: number, period: number, start: number, seam?: [number, number]): number[] {
   const waves = [1, 2, 3, 5].map(k => ({ k, size: 1 / k, phase: next() * Math.PI * 2 }))
   const total = waves.reduce((sum, wave) => sum + wave.size, 0)
-  const depths = Array.from({ length: POINTS }, (_, i) => {
-    const x = i * STEP - SLICE
-    const swell = waves.reduce((sum, w) => sum + w.size * Math.sin((2 * Math.PI * w.k * x) / PERIOD + w.phase), 0) / total
+  const depths = Array.from({ length: Math.round(length / STEP) + 1 }, (_, i) => {
+    const x = i * STEP - start
+    const swell = waves.reduce((sum, w) => sum + w.size * Math.sin((2 * Math.PI * w.k * x) / period + w.phase), 0) / total
 
     return low + range * (0.5 + 0.5 * swell) + next() * 0.7
   })
-  depths[SEAM_B] = depths[SEAM_A] ?? low
+
+  if (seam !== undefined) {
+    depths[seam[1]] = depths[seam[0]] ?? low
+  }
 
   return depths
 }
 
-type Corners = readonly [number, number, number, number]
-
 const round = (n: number): string => (Math.round(n * 10) / 10).toString()
 
+type Sides = { top: number[]; right: number[]; bottom: number[]; left: number[] }
+
 /**
- * One closed outline, `extra` further in than the tear (the aged band's inner edge). Each corner is cut off on the
- * diagonal by its own depth: a little for a ragged corner, a lot for the one bitten away.
+ * One closed outline of a `width` by `height` sheet, `extra` further in than the tear (the aged band's inner edge).
+ * Each corner is cut off on the diagonal by its own depth: a little for a ragged corner, a lot for the one bitten away.
  */
-function outline(top: number[], right: number[], bottom: number[], left: number[], corners: Corners, extra: number[]): string {
+function outline(width: number, height: number, sides: Sides, corners: Corners, extra: Sides): string {
   const points: [number, number][] = []
   const at = (depths: number[], i: number): number => depths[i] ?? 0
-  const inset = (depths: number[], i: number): number => at(depths, i) + at(extra, i)
   const [tl, tr, br, bl] = corners
-  const between = (i: number, from: number, to: number): boolean => i * STEP > from && i * STEP < BOX - to
+  const across = sides.top.length
+  const down = sides.left.length
+  const between = (i: number, from: number, to: number, length: number): boolean => i * STEP > from && i * STEP < length - to
 
-  for (let i = 1; i < POINTS - 1; i++) if (between(i, tl, tr)) points.push([i * STEP, inset(top, i)])
-  for (let i = 1; i < POINTS - 1; i++) if (between(i, tr, br)) points.push([BOX - inset(right, i), i * STEP])
-  for (let i = POINTS - 2; i > 0; i--) if (between(i, bl, br)) points.push([i * STEP, BOX - inset(bottom, i)])
-  for (let i = POINTS - 2; i > 0; i--) if (between(i, tl, bl)) points.push([inset(left, i), i * STEP])
+  for (let i = 1; i < across - 1; i++) {
+    if (between(i, tl, tr, width)) points.push([i * STEP, at(sides.top, i) + at(extra.top, i)])
+  }
+
+  for (let i = 1; i < down - 1; i++) {
+    if (between(i, tr, br, height)) points.push([width - at(sides.right, i) - at(extra.right, i), i * STEP])
+  }
+
+  for (let i = across - 2; i > 0; i--) {
+    if (between(i, bl, br, width)) points.push([i * STEP, height - at(sides.bottom, i) - at(extra.bottom, i)])
+  }
+
+  for (let i = down - 2; i > 0; i--) {
+    if (between(i, tl, bl, height)) points.push([at(sides.left, i) + at(extra.left, i), i * STEP])
+  }
 
   return `M${points.map(([x, y]) => `${round(x)} ${round(y)}`).join('L')}Z`
 }
 
+/**
+ * A torn sheet `width` by `height`. With `tile`, the waves repeat between the slice lines so the nine-cut edges tile
+ * without a step; without it, they run once along each side.
+ */
+export function tear(seed: number, width: number, height: number, tile = false): Tear {
+  const next = random(seed)
+  const wave = (length: number) => (tile ? { period: length - 2 * SLICE, start: SLICE } : { period: length, start: 0 })
+  const seam = (length: number): [number, number] | undefined => (tile ? [SLICE / STEP, (length - SLICE) / STEP] : undefined)
+  const make = (length: number, low: number, range: number) => {
+    const { period, start } = wave(length)
+
+    return side(next, length, low, range, period, start, seam(length))
+  }
+
+  const sides = { top: make(width, 0.3, 4), right: make(height, 0.3, 3), bottom: make(width, 0.3, 4.5), left: make(height, 0.3, 3) }
+  // One corner of four is bitten off; the others are only ragged. Kept under the slice less the band, so the seams
+  // of a tiled sheet are never cut.
+  const bitten = Math.floor(next() * 4)
+  const corners = [0, 1, 2, 3].map(i => (i === bitten ? 8 + next() * 3 : 2 + next() * 2)) as unknown as Corners
+  const band = { top: make(width, 1.4, 2.4), right: make(height, 1.4, 2.4), bottom: make(width, 1.4, 2.4), left: make(height, 1.4, 2.4) }
+  const none = { top: [], right: [], bottom: [], left: [] }
+
+  return { edge: outline(width, height, sides, corners, none), band: outline(width, height, sides, corners, band) }
+}
+
 /** A torn sheet in `paper`, its edge aged a shade towards the page, and the tear itself drawn in a fine line. */
 export function tornPaper(seed: number, paper: ThemeStyleColor): ThemeFillVector {
-  const next = random(seed)
-  const top = side(next, 0.3, 4)
-  const right = side(next, 0.3, 3)
-  const bottom = side(next, 0.3, 4.5)
-  const left = side(next, 0.3, 3)
-  // One corner of four is bitten off; the others are only ragged.
-  const bitten = Math.floor(next() * 4)
-  // Kept under the slice less the band, so the seams at x 16 and 144 are never cut.
-  const corners = [0, 1, 2, 3].map(i => (i === bitten ? 8 + next() * 3 : 2 + next() * 2)) as unknown as Corners
-  const band = side(next, 1.4, 2.4)
-  const none = band.map(() => 0)
-  const edge = outline(top, right, bottom, left, corners, none)
+  const { edge, band } = tear(seed, BOX, BOX, true)
 
   return {
     viewBox: BOX,
@@ -88,7 +129,7 @@ export function tornPaper(seed: number, paper: ThemeStyleColor): ThemeFillVector
     repeat: true,
     paths: [
       { d: edge, color: paper },
-      { d: `${edge}${outline(top, right, bottom, left, corners, band)}`, color: 'surface-0' },
+      { d: `${edge}${band}`, color: 'surface-0' },
       { d: edge, strokeWidth: 1, color: 'border-strong' },
     ],
   }

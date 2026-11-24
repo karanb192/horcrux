@@ -1,13 +1,19 @@
+import { seedOf, tear } from './paper'
+
 // The diary's own answers to /lumos and /nox, written in a hand as the messages are. The style that sets the
 // messages' font cannot reach a command's row, so the row is drawn: the words stay in the alt text.
 // The same size and leading as the messages' words (look.ts), so the diary's lines and the messages match.
 const SIZE = 21
 const LINE = 32
 const CHARS = 54
-const WIDTH = 640
+// A cursive letter at this size runs about 8.7 units wide (measured in a Chromium render); a little over, so the
+// scrap never cuts a word.
+const LETTER = 9.2
+const PAD = 15
 
-const INK_LIGHT = '#2a1a0d'
-const INK_DARK = '#f0dfbf'
+// The reply's own scrap and ink (look.ts and the theme's surface-0 and border-strong), as the desktop app drew them.
+const LIGHT = { paper: '#eee5ca', band: '#e9dbb9', edge: '#a8977b', ink: '#2a1a0d' }
+const DARK = { paper: '#352819', band: '#1b140e', edge: '#4a4439', ink: '#f0dfbf' }
 
 function escape(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -33,24 +39,32 @@ export function lines(text: string): string[] {
 }
 
 /**
- * The diary's words in ink. Still on purpose: the row is redrawn whenever the page is, and a written-in reveal
- * replayed on every ink bloom.
+ * The diary's words in ink on a torn scrap, the same as a reply's. Still on purpose: the row is redrawn whenever the
+ * page is, and a written-in reveal replayed on every ink bloom. The scrap's shape comes from the words, so a redraw
+ * never changes it.
  */
 export function handwriting(text: string): { source: string; width: number; height: number } {
   const written = lines(text)
-  const height = written.length * LINE + 12
-  const rows = written
-    .map((line, i) => `<text x="6" y="${LINE * (i + 1) - 6}">${escape(line)}</text>`)
-    .join('')
+  const longest = Math.max(...written.map(line => line.length))
+  const width = Math.round(longest * LETTER + 2 * PAD)
+  const height = written.length * LINE + 2 * PAD - 6
+  const { edge, band } = tear(seedOf(text), width, height)
+  const rows = written.map((line, i) => `<text x="${PAD}" y="${PAD + LINE * (i + 1) - 10}">${escape(line)}</text>`).join('')
+  const paint = (c: typeof LIGHT) =>
+    `.paper{fill:${c.paper}}.band{fill:${c.band}}.edge{stroke:${c.edge}}text{fill:${c.ink}}`
 
   const style = [
-    `text{font-family:cursive;font-size:${SIZE}px;fill:${INK_LIGHT}}`,
-    `@media (prefers-color-scheme: dark){text{fill:${INK_DARK}}}`,
+    `text{font-family:cursive;font-size:${SIZE}px}.band{fill-rule:evenodd}.edge{fill:none;stroke-width:1}`,
+    paint(LIGHT),
+    `@media (prefers-color-scheme: dark){${paint(DARK)}}`,
   ].join('')
 
   return {
-    source: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WIDTH} ${height}" width="${WIDTH}" height="${height}"><style>${style}</style>${rows}</svg>`,
-    width: WIDTH,
+    source:
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">` +
+      `<style>${style}</style><path class="paper" d="${edge}"/><path class="band" d="${edge}${band}"/>` +
+      `<path class="edge" d="${edge}"/>${rows}</svg>`,
+    width,
     height,
   }
 }
