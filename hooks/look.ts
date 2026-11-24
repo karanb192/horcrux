@@ -1,7 +1,7 @@
 import type { ThemeSetArgs } from 'claude-code'
 
 import { makeColors } from './make-colors.js'
-import { sheet } from './paper'
+import { MARGIN_NOTE, sheet } from './paper'
 
 export const PAGE = 'page'
 
@@ -94,6 +94,7 @@ export const STYLE: NonNullable<ThemeSetArgs['style']> = {
     sheet(37, 'text-assistant-message', 'bg-assistant-message'),
     sheet(41, 'text-assistant-message', 'bg-assistant-message'),
   ],
+  ToolUse: MARGIN_NOTE,
 }
 
 type Sound = ThemeSetArgs extends { sound?: infer Known } ? NonNullable<Known> : never

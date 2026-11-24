@@ -499,7 +499,7 @@ describe('the diary in its own hand', () => {
     expect(handwriting('Nox. <b> & </b>').source).toContain('&lt;b&gt; &amp; &lt;/b&gt;')
   })
 
-  test('every torn sheet tiles without a step and stays inside the engine limits', () => {
+  test('every torn sheet, the margin note\'s included, tiles without a step and stays inside the engine limits', () => {
     for (const seed of [11, 23, 37, 41]) {
       const sheet = tornPaper(seed, 'bg-user-message')
 
@@ -534,7 +534,17 @@ describe('the diary in its own hand', () => {
       }
     }
 
+    // The margin note's smaller tear: its seams sit at x 8 and 152, inside a corner that fits a short row.
+    for (const outline of Object.values(tear(53, 160, 160, true, 0.5, 8))) {
+      const top = new Map(outline.slice(1, -1).split('L').map(point => point.split(' ').map(Number) as [number, number]).filter(([, y]) => y < 12))
+
+      expect(top.get(8)).toBeDefined()
+      expect(top.get(8)).toBe(top.get(152))
+    }
+
     expect(STYLE.UserMessage).toHaveLength(2)
     expect(STYLE.AssistantMessage).toHaveLength(2)
+    // Tool rows hold paths and commands, so they keep the app's font.
+    expect(STYLE.ToolUse?.fontFamily).toBeUndefined()
   })
 })
