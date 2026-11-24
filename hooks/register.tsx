@@ -89,9 +89,11 @@ let settling: Timer | undefined
 // window can report the theme undrawn for a moment while it attaches, though it draws the page a moment later.
 let surface: string | null = null
 
-// The first reply after the diary opens ends with the melody, once.
+// The first reply after the diary opens ends with the melody, once. The plain cue goes back only when this mod's
+// page draws again: a theme with no scene asks no Backdrop, so a plain theme picked meanwhile is never overwritten.
 let melody = false
 let unsung: Timer | undefined
+let hush = false
 
 // /nox in a window that draws the page: the fang's scene plays, then the theme clears.
 let dying = false
@@ -170,6 +172,9 @@ async function open($: EngineInterface): Promise<ThemeResult> {
   dead?.cancel()
   dead = undefined
   dying = false
+  unsung?.cancel()
+  unsung = undefined
+  hush = false
   melody = true
 
   const set = await setLook($)
@@ -209,7 +214,7 @@ function stopWriting($: EngineInterface): void {
   })
 }
 
-/** After the first reply's melody has played, set the look again with the plain cue, if the page is still ours. */
+/** After the first reply's melody has played, ask for a redraw; the plain cue goes back when this mod's page draws. */
 function settleMelody($: EngineInterface): void {
   if (!melody) {
     return
@@ -219,10 +224,20 @@ function settleMelody($: EngineInterface): void {
   unsung = $.clock.after(MELODY_MS, () => {
     unsung = undefined
 
-    if (ours && off !== true) {
-      void setLook($).catch((error: unknown) => $.ui.log(`horcrux: ${String(error)}`, { to: 'debug' }))
+    if (off !== true) {
+      hush = true
+      $.ui.invalidate('ui.render')
     }
   })
+}
+
+/** Called while this mod's page draws, so the theme standing is ours: now the plain cue may go back. */
+function hushMelody($: EngineInterface): void {
+  hush = false
+
+  if (off !== true && !dying) {
+    void setLook($).catch((error: unknown) => $.ui.log(`horcrux: ${String(error)}`, { to: 'debug' }))
+  }
 }
 
 function quiet(): void {
@@ -232,6 +247,7 @@ function quiet(): void {
 
   drying = sinking = settling = unsung = undefined
   melody = false
+  hush = false
   bloom = undefined
   writing = undefined
   entering = false
@@ -369,11 +385,15 @@ export const register: Register = on => {
 
     seen = true
 
+    if (hush) {
+      hushMelody($)
+    }
+
     const { Svg } = $.ui.resolve(e)
 
     return (
       <Svg
-        alt="An old diary page, blank and water-stained, with a wax seal; at night, floating candles"
+        alt="An old diary page, blank and water-stained, with a wax seal and floating candles; stars at night"
         source={scene({ bloom, writing, entering, dying })}
       />
     )

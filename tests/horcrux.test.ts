@@ -258,10 +258,28 @@ describe('the canon', () => {
     await $.turn.complete({ answer: 'hi', durationMs: 900, isAborted: false, turnId: 't1', reason: 'answer' })
     await clock.advance(6500)
 
+    expect(sets.length).toBe(1)
+
+    await $.ui.mount({ plugin: 'horcrux', surface: 'desktop', component: 'Backdrop', props: page })
+    await new Promise<void>(resolve => setTimeout(() => resolve(), 150))
+
     const plain = sets.at(-1)?.sound?.cues?.done?.layers[0]
 
-    expect(sets.length).toBeGreaterThan(1)
+    expect(sets.length).toBe(2)
     expect(plain && 'wave' in plain ? plain.wave : undefined).not.toBe('bell')
+  })
+
+  test('a plain theme picked while the melody plays is never overwritten', async ($, on) => {
+    const sets: ThemeSetArgs[] = []
+    const clock = mock.clock(on)
+
+    engine(on, sets)
+    on('turn.complete', ($, e) => ({ text: e.answer }))
+    await $.session.start(start)
+    await $.turn.complete({ answer: 'hi', durationMs: 900, isAborted: false, turnId: 't1', reason: 'answer' })
+    await clock.advance(20000)
+
+    expect(sets.length).toBe(1)
   })
 })
 
