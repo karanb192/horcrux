@@ -1,7 +1,5 @@
 # Horcrux
 
-<img src="assets/banner.png" alt="Horcrux: turn Claude Code into Tom Riddle's diary. /lumos to open, /nox to close. A fang through an old diary under floating candles." width="100%">
-
 **A Harry Potter theme for Claude Code that turns the desktop app into Tom Riddle's diary.**
 
 A horcrux is a piece of a soul, hidden in an object. This one hides Claude in an old diary.
