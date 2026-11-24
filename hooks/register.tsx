@@ -94,6 +94,7 @@ let surface: string | null = null
 let melody = false
 let unsung: Timer | undefined
 let hush = false
+let hushing = false
 
 // /nox in a window that draws the page: the fang's scene plays, then the theme clears.
 let dying = false
@@ -231,13 +232,26 @@ function settleMelody($: EngineInterface): void {
   })
 }
 
-/** Called while this mod's page draws, so the theme standing is ours: now the plain cue may go back. */
+/**
+ * Called while this mod's page draws, so the theme standing is ours: now the plain cue may go back. One write at a
+ * time, and a failed one leaves the reset pending for the page's next draw.
+ */
 function hushMelody($: EngineInterface): void {
-  hush = false
-
-  if (off !== true && !dying) {
-    void setLook($).catch((error: unknown) => $.ui.log(`horcrux: ${String(error)}`, { to: 'debug' }))
+  if (hushing || off === true || dying) {
+    return
   }
+
+  hushing = true
+  void setLook($).then(
+    () => {
+      hush = false
+      hushing = false
+    },
+    (error: unknown) => {
+      hushing = false
+      $.ui.log(`horcrux: ${String(error)}`, { to: 'debug' })
+    },
+  )
 }
 
 function quiet(): void {
@@ -375,6 +389,10 @@ export const register: Register = on => {
   on('ui.render', { component: 'Backdrop' }, ($, e, next) => {
     if (e.props.plugin !== PLUGIN) {
       ours = false
+      // Another plugin's scene stands now: the /nox fade ends without clearing it.
+      dead?.cancel()
+      dead = undefined
+      dying = false
 
       return next(e)
     }

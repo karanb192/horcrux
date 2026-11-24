@@ -1,6 +1,7 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
 import type { CommandRunInput, On, RenderElement, SessionStartInput, ThemeSetArgs } from 'claude-code'
 
+import { lookFor } from '../hooks/look'
 import { WRITING, WRITTEN, pick } from '../hooks/register'
 import { BLOOM_COUNT, bloomSpots, edgeShift, scene, visibleBox } from '../hooks/scene'
 
@@ -51,6 +52,13 @@ function engine(on: On, sets: ThemeSetArgs[], refuse?: (args: ThemeSetArgs) => s
   on('turn.start', ($, e) => ({ turnId: e.turnId }))
 
   return { store, clears: () => clears }
+}
+
+/** The wave of the done cue's first layer, which tells the melody (bell) from the plain cue. */
+function cue(look: ThemeSetArgs | undefined): string | undefined {
+  const layer = look?.sound?.cues?.done?.layers[0]
+
+  return layer && 'wave' in layer ? layer.wave : undefined
 }
 
 describe('the look', () => {
@@ -243,30 +251,39 @@ describe('the canon', () => {
     expect(stubs.clears()).toBe(1)
   })
 
-  test('the first reply after the diary opens ends with the melody, then the plain cue comes back', async ($, on) => {
+  test('/nox fade: a theme another plugin sets meanwhile is left standing', async ($, on) => {
+    const sets: ThemeSetArgs[] = []
+    const clock = mock.clock(on)
+    const stubs = engine(on, sets)
+
+    on('ui.render', { component: 'Backdrop' }, () => BLANK)
+    await $.session.start(start)
+    await $.ui.mount({ plugin: 'horcrux', surface: 'desktop', component: 'Backdrop', props: page })
+    await $.command.run(run('nox'))
+    await $.ui.mount({ plugin: 'horcrux', surface: 'desktop', component: 'Backdrop', props: { ...page, plugin: 'lagoon-mod' } })
+    await clock.advance(4000)
+
+    expect(stubs.clears()).toBe(0)
+  })
+
+  test('the first reply after the diary opens ends with the melody, then the page brings the plain cue back', async ($, on) => {
     const sets: ThemeSetArgs[] = []
     const clock = mock.clock(on)
 
     engine(on, sets)
     on('turn.complete', ($, e) => ({ text: e.answer }))
     await $.session.start(start)
+    await $.ui.mount({ plugin: 'horcrux', surface: 'desktop', component: 'Backdrop', props: page })
 
-    const sung = sets[0]?.sound?.cues?.done?.layers[0]
-
-    expect(sung && 'wave' in sung ? sung.wave : undefined).toBe('bell')
+    expect(cue(sets[0])).toBe('bell')
 
     await $.turn.complete({ answer: 'hi', durationMs: 900, isAborted: false, turnId: 't1', reason: 'answer' })
     await clock.advance(6500)
-
-    expect(sets.length).toBe(1)
-
-    await $.ui.mount({ plugin: 'horcrux', surface: 'desktop', component: 'Backdrop', props: page })
     await new Promise<void>(resolve => setTimeout(() => resolve(), 150))
 
-    const plain = sets.at(-1)?.sound?.cues?.done?.layers[0]
-
     expect(sets.length).toBe(2)
-    expect(plain && 'wave' in plain ? plain.wave : undefined).not.toBe('bell')
+    expect(sets[1]?.sound).toEqual(lookFor('page', true, true).sound)
+    expect(cue(sets[1])).not.toBe('bell')
   })
 
   test('a plain theme picked while the melody plays is never overwritten', async ($, on) => {
@@ -276,10 +293,38 @@ describe('the canon', () => {
     engine(on, sets)
     on('turn.complete', ($, e) => ({ text: e.answer }))
     await $.session.start(start)
+
+    const ui = await $.ui.mount({ plugin: 'horcrux', surface: 'desktop', component: 'Backdrop', props: page })
+
     await $.turn.complete({ answer: 'hi', durationMs: 900, isAborted: false, turnId: 't1', reason: 'answer' })
+    // A theme with no scene asks for no Backdrop, so the page stops drawing.
+    await ui.unmount()
     await clock.advance(20000)
+    await new Promise<void>(resolve => setTimeout(() => resolve(), 150))
 
     expect(sets.length).toBe(1)
+  })
+
+  test('a failed reset is tried again the next time the page draws', async ($, on) => {
+    const sets: ThemeSetArgs[] = []
+    const clock = mock.clock(on)
+    let busy = 1
+
+    engine(on, sets, () => (sets.length === 1 && busy-- > 0 ? 'the app is busy' : undefined))
+    on('turn.complete', ($, e) => ({ text: e.answer }))
+    await $.session.start(start)
+    await $.ui.mount({ plugin: 'horcrux', surface: 'desktop', component: 'Backdrop', props: page })
+    await $.turn.complete({ answer: 'hi', durationMs: 900, isAborted: false, turnId: 't1', reason: 'answer' })
+    await clock.advance(6500)
+    await new Promise<void>(resolve => setTimeout(() => resolve(), 150))
+
+    expect(sets.length).toBe(1)
+
+    await $.ui.mount({ plugin: 'horcrux', surface: 'desktop', component: 'Backdrop', props: page })
+    await new Promise<void>(resolve => setTimeout(() => resolve(), 150))
+
+    expect(sets.length).toBe(2)
+    expect(cue(sets[1])).not.toBe('bell')
   })
 })
 
