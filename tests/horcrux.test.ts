@@ -3,7 +3,7 @@ import type { CommandRunInput, On, RenderElement, SessionStartInput, ThemeSetArg
 
 import { handwriting, lines } from '../hooks/hand'
 import { STYLE, lookFor } from '../hooks/look'
-import { tornPaper } from '../hooks/paper'
+import { tear, tornPaper } from '../hooks/paper'
 import { WRITING, WRITTEN, pick } from '../hooks/register'
 import { BLOOM_COUNT, bloomSpots, edgeShift, scene, visibleBox } from '../hooks/scene'
 
@@ -465,7 +465,7 @@ describe('the diary in its own hand', () => {
     expect(drawn).toContain('My name is Tom Riddle.')
   })
 
-  test('the terminal, other commands and error lines keep the plain row', async ($, on) => {
+  test('the terminal, other commands, error lines and text that is not the command\'s own answer keep the plain row', async ($, on) => {
     mock.clock(on)
     engine(on, [])
     on('ui.render', { component: 'CommandOutput' }, () => BLANK)
@@ -474,9 +474,11 @@ describe('the diary in its own hand', () => {
     const nox = 'Nox. The diary falls silent. /lumos opens it again.'
     const rows = [
       { ...said('nox', nox), surface: 'terminal' as const },
-      said('cost', 'Nox. not ours'),
+      said('cost', nox),
       said('nox', 'horcrux: Error: boom'),
       said('nox', nox, true),
+      said('nox', 'Lumos. Hello. My name is Tom Riddle. How did you come by my diary?'),
+      said('lumos', 'Lumos. A different reply.'),
     ]
 
     for (const row of rows) {
@@ -485,6 +487,8 @@ describe('the diary in its own hand', () => {
       expect(drawn).toContain('"type":"Box"')
       expect(drawn).not.toContain('cursive')
     }
+
+    expect(JSON.stringify(await (await $.ui.mount(said('nox', `horcrux: ${nox}`))).drawn())).toContain('cursive')
   })
 
   test('the hand breaks lines at spaces and escapes what it writes', () => {
@@ -507,12 +511,26 @@ describe('the diary in its own hand', () => {
 
         expect(d.length).toBeLessThanOrEqual(16384)
         expect(d).not.toContain('NaN')
+      }
+    }
 
-        // Top edge points at the two seams (x 16 and x 144) sit at the same depth.
-        const ys = new Map(d.split('Z')[0]!.slice(1).split('L').map(point => point.split(' ').map(Number) as [number, number]))
+    // On every side of both outlines (the tear and the band's inner edge), the two seam points sit at the same depth.
+    for (const seed of [11, 23, 37, 41]) {
+      const { edge, band } = tear(seed, 160, 160, true)
 
-        expect(ys.get(16)).toBeDefined()
-        expect(ys.get(16)).toBe(ys.get(144))
+      for (const outline of [edge, band]) {
+        const points = outline.slice(1, -1).split('L').map(point => point.split(' ').map(Number) as [number, number])
+        const near = (value: number, at: number) => Math.abs(value - at) < 3
+        const top = new Map(points.filter(([, y]) => y < 20).map(([x, y]) => [x, y]))
+        const bottom = new Map(points.filter(([, y]) => y > 140).map(([x, y]) => [x, 160 - y]))
+        const left = new Map(points.filter(([x]) => x < 20).map(([x, y]) => [y, x]))
+        const right = new Map(points.filter(([x]) => x > 140).map(([x, y]) => [y, 160 - x]))
+
+        for (const side of [top, bottom, left, right]) {
+          expect(side.get(16)).toBeDefined()
+          expect(near(side.get(16)!, side.get(144)!)).toBe(true)
+          expect(side.get(16)).toBe(side.get(144))
+        }
       }
     }
 

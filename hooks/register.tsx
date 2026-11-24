@@ -284,6 +284,16 @@ function startBloom($: EngineInterface): void {
   })
 }
 
+// What /lumos and /nox answer when they work. Only these are drawn in the diary's hand: an error or any other
+// text in the row keeps the app's own line.
+const LUMOS_DESKTOP = 'Lumos. Hello. My name is Tom Riddle. How did you come by my diary?'
+const LUMOS_TERMINAL =
+  "Lumos. Hello. My name is Tom Riddle. (The page and the candles show in the Claude desktop app; here you get the diary's words.)"
+const NOX_FANG = 'Nox. A fang through the page, and the diary falls silent. /lumos opens it again.'
+const NOX_QUIET = 'Nox. The diary falls silent. /lumos opens it again.'
+const NOX_ALREADY = 'Nox. The diary was already silent, and stays closed in new sessions too.'
+const ANSWERS: Record<string, readonly string[]> = { [OPEN]: [LUMOS_DESKTOP], [CLOSE]: [NOX_FANG, NOX_QUIET, NOX_ALREADY] }
+
 /** `/lumos` opens the diary and `/nox` closes it. Either answer is shown to you alone. */
 async function spell($: EngineInterface, name: typeof OPEN | typeof CLOSE): Promise<string> {
   const closed = await isOff($)
@@ -307,7 +317,7 @@ async function spell($: EngineInterface, name: typeof OPEN | typeof CLOSE): Prom
         $.ui.invalidate('ui.render')
       })
 
-      return 'Nox. A fang through the page, and the diary falls silent. /lumos opens it again.'
+      return NOX_FANG
     }
 
     if (!closed && ours && !dying) {
@@ -317,7 +327,7 @@ async function spell($: EngineInterface, name: typeof OPEN | typeof CLOSE): Prom
     ours = false
     $.ui.invalidate('ui.render')
 
-    return closed ? 'Nox. The diary was already silent, and stays closed in new sessions too.' : 'Nox. The diary falls silent. /lumos opens it again.'
+    return closed ? NOX_ALREADY : NOX_QUIET
   }
 
   await open($)
@@ -325,9 +335,7 @@ async function spell($: EngineInterface, name: typeof OPEN | typeof CLOSE): Prom
   off = false
   await $.store.set(OFF_KEY, false)
 
-  return surface === 'terminal'
-    ? 'Lumos. Hello. My name is Tom Riddle. (The page and the candles show in the Claude desktop app; here you get the diary\'s words.)'
-    : 'Lumos. Hello. My name is Tom Riddle. How did you come by my diary?'
+  return surface === 'terminal' ? LUMOS_TERMINAL : LUMOS_DESKTOP
 }
 
 export const register: Register = on => {
@@ -418,25 +426,29 @@ export const register: Register = on => {
     )
   })
 
-  // The diary's answers to /lumos and /nox, in its own hand where a window can draw it; the terminal keeps the words.
-  on('ui.render', { component: 'CommandOutput' }, ($, e, next) => {
-    const command = e.props.command.replace(`${PLUGIN}:`, '')
-    const text = e.props.text.replace(`${PLUGIN}: `, '')
+  // The diary's answers to /lumos and /nox, in its own hand where a window can draw it. The matcher keeps every other
+  // command's output, and the terminal's, from reaching this hook at all; the words stay in the alt text.
+  on(
+    'ui.render',
+    {
+      component: 'CommandOutput',
+      surface: ['desktop', 'mobile'],
+      props: { command: [OPEN, CLOSE, `${PLUGIN}:${OPEN}`, `${PLUGIN}:${CLOSE}`], isErrored: false },
+    },
+    ($, e, next) => {
+      const command = e.props.command.startsWith(`${PLUGIN}:`) ? e.props.command.slice(PLUGIN.length + 1) : e.props.command
+      const text = e.props.text.startsWith(`${PLUGIN}: `) ? e.props.text.slice(PLUGIN.length + 2) : e.props.text
 
-    if (
-      (e.surface !== 'desktop' && e.surface !== 'mobile') ||
-      e.props.isErrored ||
-      (command !== OPEN && command !== CLOSE) ||
-      !/^(Lumos|Nox)\./.test(text)
-    ) {
-      return next(e)
-    }
+      if (!(ANSWERS[command] ?? []).includes(text)) {
+        return next(e)
+      }
 
-    const { Svg } = $.ui.resolve(e)
-    const hand = handwriting(text)
+      const { Svg } = $.ui.resolve(e)
 
-    return <Svg alt={text} source={hand.source} width={hand.width} height={hand.height} />
-  })
+      // No width or height: the drawing takes its own size up to the row's width and shrinks to fit a narrow one.
+      return <Svg alt={text} source={handwriting(text).source} />
+    },
+  )
 
   on('ui.render', { component: 'Spinner' }, async ($, e, next) => {
     if (e.surface !== 'terminal' || (await isOff($))) {
