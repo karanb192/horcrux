@@ -14,4 +14,6 @@ claude plugin test .
 
 Both must pass. A change to how the page looks needs a screenshot from the Claude desktop app, in light and dark mode.
 
-**Keep it original.** Every picture, word and sound in Horcrux is our own. Please do not add film stills, logos, crests, fonts from the films, lines quoted from the books or films, or their music. Draw it, write it or make the sound yourself.
+**Harry Potter is welcome.** Horcrux is a free, open-source fan homage. Names, spells, places, scenes, house colours and short lines from the books are all fair game.
+
+**Make it, don't paste it.** Every picture, sound and file in Horcrux is made for it: drawn, generated from your own prompt, or played from notes in code (a film melody played on the theme's own tones is fine). Please don't paste in media files from elsewhere: film stills or screenshots, ripped audio or music, official logo or crest images, or font files. Pasted media looks patched on, and copied media files are what get repositories taken down on GitHub.
