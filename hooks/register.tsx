@@ -78,6 +78,10 @@ let sinking: Timer | undefined
 let entering = false
 let settling: Timer | undefined
 
+// Where this session draws, from its start. Only a terminal session is told the page shows elsewhere: a desktop
+// window can report the theme undrawn for a moment while it attaches, though it draws the page a moment later.
+let surface: string | null = null
+
 /** A stable pick from a list, so one spinner word maps to one diary word for the whole session. */
 export function pick<T>(list: readonly T[], seed: string): T {
   let hash = 0
@@ -146,7 +150,7 @@ async function setLook($: EngineInterface): Promise<ThemeResult> {
   return set
 }
 
-/** Sets the look, and lights the page: dim to bright, and at night the candles catch one by one. */
+/** Sets the look, and lights the page: dim to bright, and the candles catch one by one. */
 async function open($: EngineInterface): Promise<ThemeResult> {
   const set = await setLook($)
 
@@ -231,19 +235,21 @@ async function spell($: EngineInterface, name: typeof OPEN | typeof CLOSE): Prom
     return closed ? 'Nox. The diary was already dark, and stays dark in new sessions too.' : 'Nox. The diary closes. /lumos opens it again.'
   }
 
-  const set = await open($)
+  await open($)
 
   off = false
   await $.store.set(OFF_KEY, false)
 
-  return set.isDrawn
-    ? 'Lumos. The diary is open. Write something.'
-    : 'Lumos. The diary is open, but this window draws no page: the page shows in the Claude desktop app. Here you get the diary\'s words.'
+  return surface === 'terminal'
+    ? 'Lumos. The diary is open. The page and the candles show in the Claude desktop app; here you get the diary\'s words.'
+    : 'Lumos. The diary is open. Write something.'
 }
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const started = await next(e)
+
+    surface = e.surface
 
     await $.command.register({ name: OPEN, description: 'Open the diary: an old page, ink and candlelight (horcrux)' })
     await $.command.register({ name: CLOSE, description: 'Close the diary and bring back the plain app (horcrux)' })

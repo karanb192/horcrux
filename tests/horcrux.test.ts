@@ -209,6 +209,20 @@ describe('the ink', () => {
   })
 })
 
+describe('the spells', () => {
+  test('/lumos in the desktop app just opens the diary; in a terminal it says where the page shows', async ($, on) => {
+    const sets: ThemeSetArgs[] = []
+
+    mock.clock(on)
+    engine(on, sets)
+    await $.session.start(start)
+    expect((await $.command.run(run('lumos'))).text).toBe('Lumos. The diary is open. Write something.')
+
+    await $.session.start({ ...start, surface: 'terminal' })
+    expect((await $.command.run(run('lumos'))).text).toContain('desktop app')
+  })
+})
+
 describe('the other hand', () => {
   test('while Claude replies the margin fills with script, then it sinks away and is gone', async ($, on) => {
     const sets: ThemeSetArgs[] = []

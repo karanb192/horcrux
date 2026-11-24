@@ -1,5 +1,5 @@
 // The page behind the conversation, as one SVG string. Pure vector: gradients, lines and paths, no pictures, no
-// filters, no fonts. By day an old, blank, water-stained diary page; at night the same page under floating candles.
+// filters, no fonts. An old, blank, water-stained diary page under floating candles; at night, under stars too.
 //
 // The root crops to fill any window (`slice`). The spine, the margins' ink, the footprints and the seal live in two
 // edge groups that @media rules slide inward as the window narrows, so they stay on screen in square or tall windows.
@@ -13,7 +13,7 @@ export type SceneState = {
   bloom?: number
   /** The other hand writing in the right margin while Claude replies, then its words sinking away. */
   writing?: 'on' | 'sinking'
-  /** The page lighting up after /lumos: dim to bright, and at night the candles catching one by one. */
+  /** The page lighting up after /lumos: dim to bright, and the candles catching one by one. */
   entering?: boolean
 }
 
@@ -104,7 +104,7 @@ const STYLE = `
 .hand{fill:none;stroke:#2a1a0d;stroke-opacity:.55;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 .foot{fill:#2a1a0d;fill-opacity:0;animation:step 26s linear infinite}
 .wax{fill:#8e221b}.wax2{fill:#6e1712}.wax3{fill:none;stroke:#b8453a;stroke-width:3;stroke-linecap:round;stroke-opacity:.8}
-.night{display:none}
+.stars{display:none}
 .glow{opacity:.85;animation:flicker 7s ease-in-out infinite alternate}
 .veil{fill:#1a1209;opacity:0}
 @keyframes flicker{0%{opacity:.7}35%{opacity:.95}60%{opacity:.8}100%{opacity:1}}
@@ -130,10 +130,11 @@ const STYLE = `
 .ignite{transform-box:fill-box;transform-origin:50% 100%;animation:ignite 1.2s ease-out 1 backwards}
 @keyframes ignite{0%{transform:scale(0);opacity:0}60%{transform:scale(1.2);opacity:1}100%{transform:scale(1);opacity:1}}
 .wick{stroke:#2a1a0d;stroke-width:2}
-.wax-c{fill:url(#hx-candle-body)}
+.wax-c{fill:url(#hx-candle-body);stroke:#9c7f4d;stroke-width:1.4}
+.wick{stroke:#2a1a0d;stroke-width:2}
 .cb0{stop-color:#f4ead2}.cb1{stop-color:#cdbb93}
 .fl0{stop-color:#fff6d8}.fl1{stop-color:#ffb347}.fl2{stop-color:#e0661c}
-.halo0{stop-color:#ffcf7a;stop-opacity:.55}.halo1{stop-color:#ffcf7a;stop-opacity:0}
+.halo0{stop-color:#ffcf7a;stop-opacity:.4}.halo1{stop-color:#ffcf7a;stop-opacity:0}
 ${edgeRules()}
 @media (prefers-color-scheme: dark){
 .p0{stop-color:#3a2c1d}.p1{stop-color:#251b12}.p2{stop-color:#110b06}
@@ -148,7 +149,9 @@ ${edgeRules()}
 .hand{stroke:#e9d6ad;stroke-opacity:.45}
 .foot{fill:#e9d6ad}
 .wax{fill:#7a1a16}.wax2{fill:#5a110e}.wax3{stroke:#a63a30}
-.night{display:inline}
+.stars{display:inline}
+.wax-c{stroke:none}
+.halo0{stop-opacity:.55}
 .veil{fill:#000000}
 }
 `
@@ -292,7 +295,7 @@ function hand(state: 'on' | 'sinking'): string {
   return `<g class="${state === 'sinking' ? 'gone' : ''}">${s}</g>`
 }
 
-// The night: a ceiling of faint stars and candles that float, bob and burn.
+// Candles that float, bob and burn, by day and by night; at night a ceiling of faint stars above them.
 function night(entering: boolean): string {
   const rand = rng(73)
   let stars = ''
@@ -322,7 +325,7 @@ function night(entering: boolean): string {
 </g></g>`
   }).join('')
 
-  return `<g class="night">${stars}${candles}</g>`
+  return `<g class="stars">${stars}</g>${candles}`
 }
 
 const DEFS = `<defs>
