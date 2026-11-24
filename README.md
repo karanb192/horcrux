@@ -4,7 +4,7 @@
 
 https://github.com/user-attachments/assets/6f319df0-64f8-49d9-82d3-9463615648d6
 
-18 seconds of the real desktop app. Claude answers a real debugging question, then `/nox` ends it. Unmute for the score, which was composed for this clip and is not the theme's own sound. The reply's wait runs at 4×. [Install it](#install).
+18 seconds of the real desktop app. A developer asks, "I added a print and the bug went away. Can I leave it?" Claude answers on parchment, and `/nox` closes the diary. Unmute for the score, which was composed for this clip and is not the theme's own sound. The reply's wait runs at 4×. [Install it](#install).
 
 A horcrux is a piece of a soul, hidden in an object. This one hides Claude in an old diary.
 Write on the page and your ink sinks into the paper; a moment later, a second hand writes back.
@@ -30,7 +30,7 @@ To remove it, run `claude plugin uninstall horcrux@horcrux`.
 1. **Lumos.** The page lights up as if someone struck a lamp, floating candles catch one by one, and the diary greets you with *"Hello. My name is Tom Riddle. How did you come by my diary?"* At night the candles hang under a ceiling of faint stars.
 2. **The page.** An old diary page, blank and yellowed, once soaked through and dried, sealed with red wax in the corner. It follows the app's light and dark mode, cream by day and candlelit at night. Something small and unseen walks up the margin, one footprint at a time.
 3. **Your ink sinks in.** Each time you write, a drop of ink lands in the margin beside your words, creeps out along the paper's fibres and sinks away.
-4. **The other hand writes back.** While Claude replies, lines of script write themselves into the margin, one after another. When the reply is done, they stop.
+4. **The other hand writes back.** While Claude replies, lines of script write themselves into the margin, one after another. When the reply is done and the ink has settled, they stop.
 5. **Two hands, two inks.** Your words in blue-black and Claude's in brown-black by day, pale blue and cream by candlelight, both in cursive, each on its own torn scrap of the page with a corner bitten away, lying on the diary with a soft shadow under it. The diary's answers to `/lumos` and `/nox` are written in the same hand.
 6. **Sound, if you want it.** A quiet room with a candle, a nib when you send, a quill stroke for each tool call, a page turning when the conversation compacts, and once in a while an owl, far off. The diary's first reply ends with the opening bars of the films' theme on a celesta-like bell. Off until you press the speaker in the session's title bar.
 7. **Nox.** A basilisk fang stabs through the page, ink bleeds from the wound and runs down the paper, and the diary falls silent.
@@ -53,7 +53,7 @@ Each tool call sits on a small, older scrap, like a note in the margin, in the a
 | | |
 |---|---|
 | Reads and writes | Its own open/closed setting |
-| Sees | The backdrop, the spinner and the turn line it draws, its own answers to `/lumos` and `/nox` where it draws them in its hand, and the start and end of each turn. Those turn events carry your prompt and Claude's reply; Horcrux only checks whether the turn is the main conversation's, and never reads, keeps or sends either |
+| Sees | The backdrop, the spinner and the turn line it draws, the output of `/lumos` and `/nox`, which it checks so that it draws only its own known replies in its hand, and the start and end of each turn. Those turn events carry your prompt and Claude's reply; Horcrux only checks whether the turn is the main conversation's, and never reads, keeps or sends either |
 | Network | None |
 | Tokens | None. Even `/lumos` and `/nox` answer you alone and never reach the model |
 
