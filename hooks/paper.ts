@@ -1,4 +1,4 @@
-import type { ThemeMessageRule } from 'claude-code'
+import type { ThemeMessageRule, ThemeSetArgs } from 'claude-code'
 
 type ThemeStyleColor = NonNullable<ThemeMessageRule['backgroundColor']>
 type ThemeFillVector = Extract<NonNullable<ThemeMessageRule['fill']>, { vector: unknown }>['vector']
@@ -98,34 +98,40 @@ function outline(width: number, height: number, sides: Sides, corners: Corners, 
  * A torn sheet `width` by `height`. With `tile`, the waves repeat between the slice lines so the nine-cut edges tile
  * without a step; without it, they run once along each side.
  */
-export function tear(seed: number, width: number, height: number, tile = false): Tear {
+export function tear(seed: number, width: number, height: number, tile = false, scale = 1, slice = SLICE): Tear {
   const next = random(seed)
-  const wave = (length: number) => (tile ? { period: length - 2 * SLICE, start: SLICE } : { period: length, start: 0 })
-  const seam = (length: number): [number, number] | undefined => (tile ? [SLICE / STEP, (length - SLICE) / STEP] : undefined)
+  const wave = (length: number) => (tile ? { period: length - 2 * slice, start: slice } : { period: length, start: 0 })
+  const seam = (length: number): [number, number] | undefined => (tile ? [slice / STEP, (length - slice) / STEP] : undefined)
   const make = (length: number, low: number, range: number) => {
     const { period, start } = wave(length)
 
-    return side(next, length, low, range, period, start, seam(length))
+    return side(next, length, low * scale, range * scale, period, start, seam(length))
   }
 
   const sides = { top: make(width, 0.3, 4), right: make(height, 0.3, 3), bottom: make(width, 0.3, 4.5), left: make(height, 0.3, 3) }
   // One corner of four is bitten off; the others are only ragged. Kept under the slice less the band, so the seams
   // of a tiled sheet are never cut.
   const bitten = Math.floor(next() * 4)
-  const corners = [0, 1, 2, 3].map(i => (i === bitten ? 8 + next() * 3 : 2 + next() * 2)) as unknown as Corners
+  const corners = [0, 1, 2, 3].map(i => scale * (i === bitten ? 8 + next() * 3 : 2 + next() * 2)) as unknown as Corners
   const band = { top: make(width, 1.4, 2.4), right: make(height, 1.4, 2.4), bottom: make(width, 1.4, 2.4), left: make(height, 1.4, 2.4) }
   const none = { top: [], right: [], bottom: [], left: [] }
 
   return { edge: outline(width, height, sides, corners, none), band: outline(width, height, sides, corners, band) }
 }
 
-/** A torn sheet in `paper`, its edge aged a shade towards the page, and the tear itself drawn in a fine line. */
-export function tornPaper(seed: number, paper: ThemeStyleColor): ThemeFillVector {
-  const { edge, band } = tear(seed, BOX, BOX, true)
+// Lifts each scrap off the page as paper lies on paper. A raw shade, so it darkens both modes' page the same way.
+const LIFT = { x: 1, y: 3, blur: 7, color: '#00000059' } as const
+
+/**
+ * A torn sheet in `paper`, its edge aged a shade towards the page, and the tear itself drawn in a fine line.
+ * `scale` and `slice` make a smaller tear for a short row, whose corners must fit inside its height.
+ */
+export function tornPaper(seed: number, paper: ThemeStyleColor, scale = 1, slice = SLICE): ThemeFillVector {
+  const { edge, band } = tear(seed, BOX, BOX, true, scale, slice)
 
   return {
     viewBox: BOX,
-    slice: SLICE,
+    slice,
     repeat: true,
     paths: [
       { d: edge, color: paper },
@@ -141,7 +147,22 @@ export function sheet(seed: number, ink: ThemeStyleColor, paper: ThemeStyleColor
     backgroundColor: paper,
     fill: { vector: tornPaper(seed, paper) },
     padding: 15,
-    shadow: 'none',
+    shadow: LIFT,
     ...(rotate === undefined ? {} : { rotate }),
   }
+}
+
+type ThemeToolRule = NonNullable<NonNullable<ThemeSetArgs['style']>['ToolUse']>
+
+/**
+ * A tool call as a note in the margin: a smaller, older scrap with no lift, in the page's second ink. The app's own
+ * font stays, because a tool row holds paths and commands that have to be read exactly.
+ */
+export const MARGIN_NOTE: ThemeToolRule = {
+  color: 'text-secondary',
+  backgroundColor: 'surface-1',
+  fill: { vector: tornPaper(53, 'surface-1', 0.5, 8) },
+  paddingX: 12,
+  paddingY: 5,
+  shadow: 'none',
 }
