@@ -334,7 +334,7 @@ describe('the canon', () => {
 })
 
 describe('the other hand', () => {
-  test('while Claude replies the margin fills with script, then it sinks away and is gone', async ($, on) => {
+  test('while Claude replies the margin fills with script; a quick reply stops it once the drop has faded', async ($, on) => {
     const sets: ThemeSetArgs[] = []
     const clock = mock.clock(on)
 
@@ -348,12 +348,30 @@ describe('the other hand', () => {
     await $.turn.start({ text: 'hello', turnId: 't1' })
     expect(JSON.stringify(await ui.drawn())).toContain('hand w')
 
+    // A redraw now would start the drop and the script over, so the stop waits for the drop to fade.
     await $.turn.complete({ answer: 'hi', durationMs: 900, isAborted: false, turnId: 't1', reason: 'answer' })
-    // Sinking keeps the lines writing in turn as they fade; none is drawn whole at once.
-    expect(JSON.stringify(await ui.drawn())).toContain('class=\\"gone\\"')
-    expect(JSON.stringify(await ui.drawn())).not.toContain('class=\\"hand\\"')
+    expect(JSON.stringify(await ui.drawn())).toContain('hand w')
 
-    await clock.advance(3000)
+    await clock.advance(4000)
+    expect(JSON.stringify(await ui.drawn())).not.toContain('class=\\"hand')
+    expect(JSON.stringify(await ui.drawn())).not.toContain('class=\\"bloom\\"')
+  })
+
+  test('a longer reply stops the script at once, in one redraw, with no last pass', async ($, on) => {
+    const sets: ThemeSetArgs[] = []
+    const clock = mock.clock(on)
+
+    engine(on, sets)
+    on('turn.complete', ($, e) => ({ text: e.answer }))
+    await $.session.start(start)
+    await clock.advance(7000)
+
+    const ui = await $.ui.mount({ plugin: 'horcrux', surface: 'desktop', component: 'Backdrop', props: page })
+
+    await $.turn.start({ text: 'hello', turnId: 't1' })
+    await clock.advance(5000)
+    await $.turn.complete({ answer: 'a long answer', durationMs: 5000, isAborted: false, turnId: 't1', reason: 'answer' })
+
     expect(JSON.stringify(await ui.drawn())).not.toContain('class=\\"hand')
   })
 
@@ -409,7 +427,7 @@ describe('the terminal', () => {
 
 describe('the scene', () => {
   test('every page fits the engine and holds no picture', () => {
-    for (const svg of [scene(), ...Array.from({ length: BLOOM_COUNT }, (_, i) => scene({ bloom: i })), scene({ writing: 'on' }), scene({ writing: 'sinking' }), scene({ entering: true }), scene({ dying: true })]) {
+    for (const svg of [scene(), ...Array.from({ length: BLOOM_COUNT }, (_, i) => scene({ bloom: i })), scene({ writing: 'on' }), scene({ entering: true }), scene({ dying: true })]) {
       expect(svg.length).toBeLessThan(131_072)
       expect(svg).not.toContain('<image')
       expect(svg).not.toContain('href')

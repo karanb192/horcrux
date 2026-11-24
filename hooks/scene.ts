@@ -11,8 +11,8 @@ const H = 1000
 export type SceneState = {
   /** A drop of ink soaking into a margin: its spot. */
   bloom?: number
-  /** The other hand writing in the right margin while Claude replies, then its words sinking away. */
-  writing?: 'on' | 'sinking'
+  /** The other hand writing in the right margin while Claude replies. */
+  writing?: 'on'
   /** The page lighting up after /lumos: dim to bright, and the candles catching one by one. */
   entering?: boolean
   /** /nox: a basilisk fang stabs the page, ink bleeds from the wound, and the page goes dark. */
@@ -111,8 +111,6 @@ const STYLE = `
 @keyframes sink{0%{opacity:0}5%{opacity:.92}50%{opacity:.85}100%{opacity:0}}
 .w{stroke-dasharray:1;stroke-dashoffset:1;animation:scrawl 9s ease-in-out infinite}
 @keyframes scrawl{0%{stroke-dashoffset:1;opacity:1}30%,70%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
-.gone{animation:fade 2.4s ease-in 1 forwards}
-@keyframes fade{0%{opacity:1}100%{opacity:0}}
 .enter{animation:lift 2.8s ease-out 1 forwards}
 @keyframes lift{0%{opacity:.75}100%{opacity:0}}
 .star{fill:#f6e7c4;opacity:.35;animation:twinkle 6s ease-in-out infinite alternate}
@@ -270,8 +268,8 @@ function bloomAt(index: number, x: number, y: number): string {
 
 // The other hand: four lines of unreadable script in the right margin, written one after another while Claude replies.
 // They start right of the lowest candle (1400, 300) and stop above where your drop lands.
-// When the reply ends they keep writing as they sink away: drawing them whole there made every line appear at once.
-function hand(state: 'on' | 'sinking'): string {
+// When the reply ends they simply stop: any last pass drawn then starts over from the first line.
+function hand(): string {
   const rand = rng(57)
   let s = ''
 
@@ -296,7 +294,7 @@ function hand(state: 'on' | 'sinking'): string {
     s += `<path class="hand w" pathLength="1" style="animation-delay:${f(line * 1.2)}s" d="${d}"/>`
   }
 
-  return `<g class="${state === 'sinking' ? 'gone' : ''}">${s}</g>`
+  return `<g>${s}</g>`
 }
 
 // Candles that float, bob and burn, by day and by night; at night a ceiling of faint stars above them.
@@ -388,7 +386,7 @@ function edges(state: SceneState): string {
     '</g>',
     '<g class="edge-r">',
     SEAL,
-    state.writing === undefined ? '' : hand(state.writing),
+    state.writing === undefined ? '' : hand(),
     ink('right'),
     state.dying === true ? fang() : '',
     '</g>',
