@@ -7,7 +7,7 @@
     {
       "name": "horcrux",
       "source": "./",
-      "description": "Turn Claude Code into Tom Riddle's diary: an old page, ink that soaks in, a second hand that writes back, floating candles at night. Draws only; no tokens, no network.",
+      "description": "Turn Claude Code into Tom Riddle's diary: an old page, ink that soaks in, a second hand that writes back, floating candles, stars at night. Draws only; no tokens, no network.",
       "category": "themes",
       "tags": ["mods", "theme", "harry-potter", "diary", "desktop"]
     }
