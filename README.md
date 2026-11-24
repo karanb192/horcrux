@@ -63,7 +63,7 @@ Code blocks, diffs, permission prompts and questions keep the app's own look, so
 
 ## Credits
 
-Inspired by Tom Riddle's diary in J.K. Rowling's *Harry Potter and the Chamber of Secrets*. Horcrux is a free fan homage with its own art, words and sounds; it is not affiliated with or endorsed by J.K. Rowling, Warner Bros. or anyone connected to them.
+Inspired by Tom Riddle's diary in J.K. Rowling's *Harry Potter and the Chamber of Secrets*. Horcrux is a free, open-source fan homage; it is not affiliated with or endorsed by J.K. Rowling, Warner Bros. or anyone connected to them.
 
 The first great version of a diary that writes back is [Riddle](https://github.com/MaximeRivest/riddle) by Maxime Rivest, which turns a reMarkable tablet into the diary.
 
