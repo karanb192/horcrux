@@ -508,10 +508,11 @@ describe('the diary in its own hand', () => {
         expect(d.length).toBeLessThanOrEqual(16384)
         expect(d).not.toContain('NaN')
 
-        // Top edge points at the two seams (x 12 and x 60) sit at the same depth.
+        // Top edge points at the two seams (x 16 and x 144) sit at the same depth.
         const ys = new Map(d.split('Z')[0]!.slice(1).split('L').map(point => point.split(' ').map(Number) as [number, number]))
 
-        expect(ys.get(12)).toBe(ys.get(60))
+        expect(ys.get(16)).toBeDefined()
+        expect(ys.get(16)).toBe(ys.get(144))
       }
     }
 

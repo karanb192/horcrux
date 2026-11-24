@@ -1,5 +1,6 @@
 // The diary's own answers to /lumos and /nox, written in a hand as the messages are. The style that sets the
 // messages' font cannot reach a command's row, so the row is drawn: the words stay in the alt text.
+// The same size and leading as the messages' words (look.ts), so the diary's lines and the messages match.
 const SIZE = 21
 const LINE = 32
 const CHARS = 54
@@ -31,20 +32,20 @@ export function lines(text: string): string[] {
   return out
 }
 
-/** The diary's words, written in ink one line after another; still where motion is reduced. */
+/**
+ * The diary's words in ink. Still on purpose: the row is redrawn whenever the page is, and a written-in reveal
+ * replayed on every ink bloom.
+ */
 export function handwriting(text: string): { source: string; width: number; height: number } {
   const written = lines(text)
   const height = written.length * LINE + 12
   const rows = written
-    .map((line, i) => `<text class="line" style="animation-delay:${(i * 1.1).toFixed(1)}s" x="6" y="${LINE * (i + 1) - 6}">${escape(line)}</text>`)
+    .map((line, i) => `<text x="6" y="${LINE * (i + 1) - 6}">${escape(line)}</text>`)
     .join('')
 
   const style = [
     `text{font-family:cursive;font-size:${SIZE}px;fill:${INK_LIGHT}}`,
     `@media (prefers-color-scheme: dark){text{fill:${INK_DARK}}}`,
-    '.line{animation:quill 1.2s ease-out both}',
-    '@keyframes quill{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}',
-    '@media (prefers-reduced-motion: reduce){.line{animation:none}}',
   ].join('')
 
   return {

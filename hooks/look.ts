@@ -76,7 +76,7 @@ function withMessageInk(colors: ThemeSetArgs['colors']): ThemeSetArgs['colors'] 
 
 const COLORS = withMessageInk(made.theme)
 
-const WRITTEN = { fontFamily: ['cursive'], fontSize: 19, lineHeight: 30 } as const
+const WRITTEN = { fontFamily: ['cursive'], fontSize: 21, lineHeight: 32 } as const
 
 export const STYLE: NonNullable<ThemeSetArgs['style']> = {
   Text: WRITTEN,
