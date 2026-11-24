@@ -10,7 +10,6 @@ const OPEN = 'lumos'
 const CLOSE = 'nox'
 const OFF_KEY = 'off'
 const BLOOM_MS = 3800
-const SINK_MS = 2600
 const ENTER_MS = 6000
 const DEATH_MS = 3800
 // Long enough for the app to play the first reply's melody before the plain cue goes back.
@@ -82,7 +81,8 @@ let bloom: number | undefined
 let blooms = 0
 let drying: Timer | undefined
 let writing: SceneState['writing']
-let sinking: Timer | undefined
+// The reply ended while the drop was still fading: the script stops when the drop is gone, in one redraw.
+let stopAfterDrop = false
 let entering = false
 let settling: Timer | undefined
 
@@ -194,10 +194,13 @@ async function open($: EngineInterface): Promise<ThemeResult> {
   return set
 }
 
-/** While Claude replies, the other hand writes in the right margin; when the reply ends, its words sink away. */
+/**
+ * While Claude replies, the other hand writes in the right margin; when the reply ends, it stops. Every redraw
+ * restarts every animation on the page, so the end of a reply is one redraw that leaves the script out: a fading
+ * last pass started the lines over, and a redraw while the drop still faded drew the drop again.
+ */
 function startWriting($: EngineInterface): void {
-  sinking?.cancel()
-  sinking = undefined
+  stopAfterDrop = false
   writing = 'on'
   $.ui.invalidate('ui.render')
 }
@@ -207,13 +210,14 @@ function stopWriting($: EngineInterface): void {
     return
   }
 
-  writing = 'sinking'
+  if (drying !== undefined) {
+    stopAfterDrop = true
+
+    return
+  }
+
+  writing = undefined
   $.ui.invalidate('ui.render')
-  sinking = $.clock.after(SINK_MS, () => {
-    writing = undefined
-    sinking = undefined
-    $.ui.invalidate('ui.render')
-  })
 }
 
 /** After the first reply's melody has played, ask for a redraw; the plain cue goes back when this mod's page draws. */
@@ -256,11 +260,12 @@ function hushMelody($: EngineInterface): void {
 }
 
 function quiet(): void {
-  for (const timer of [drying, sinking, settling, unsung]) {
+  for (const timer of [drying, settling, unsung]) {
     timer?.cancel()
   }
 
-  drying = sinking = settling = unsung = undefined
+  drying = settling = unsung = undefined
+  stopAfterDrop = false
   melody = false
   hush = false
   bloom = undefined
@@ -277,10 +282,17 @@ function startBloom($: EngineInterface): void {
   blooms += 1
   bloom = blooms % BLOOM_COUNT
   $.ui.invalidate('ui.render')
+  // The drop fades out by itself. Dropping it asks for no redraw: a redraw restarts every animation on the page, and
+  // mid-reply that sent the margin script back to its first line. If the reply already ended, its stop redraws now.
   drying = $.clock.after(BLOOM_MS, () => {
     bloom = undefined
     drying = undefined
-    $.ui.invalidate('ui.render')
+
+    if (stopAfterDrop) {
+      stopAfterDrop = false
+      writing = undefined
+      $.ui.invalidate('ui.render')
+    }
   })
 }
 

@@ -1,6 +1,6 @@
 {
   "name": "horcrux",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Turn Claude Code into Tom Riddle's diary. Write on an old page, your ink soaks in, and a second hand writes back. Floating candles, and stars at night. /lumos to open, /nox to close. Desktop app; draws only, no tokens.",
   "author": { "name": "Karan Bansal", "url": "https://github.com/karanb192" },
   "homepage": "https://github.com/karanb192/horcrux",

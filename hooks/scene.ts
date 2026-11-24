@@ -11,8 +11,8 @@ const H = 1000
 export type SceneState = {
   /** A drop of ink soaking into a margin: its spot. */
   bloom?: number
-  /** The other hand writing in the right margin while Claude replies, then its words sinking away. */
-  writing?: 'on' | 'sinking'
+  /** The other hand writing in the right margin while Claude replies. */
+  writing?: 'on'
   /** The page lighting up after /lumos: dim to bright, and the candles catching one by one. */
   entering?: boolean
   /** /nox: a basilisk fang stabs the page, ink bleeds from the wound, and the page goes dark. */
@@ -60,18 +60,10 @@ function blob(rand: () => number, cx: number, cy: number, r: number, wobble: num
   return `${d}Z`
 }
 
-// Where a drop of ink lands when you write. Every drop sits between y=340 and y=660, which a window as wide as 3.5:1
-// still shows whole.
-const BLOOM_SPOTS: readonly (readonly ['left' | 'right', number, number])[] = [
-  ['left', 96, 380],
-  ['right', 1512, 470],
-  ['left', 120, 560],
-  ['right', 1488, 360],
-  ['left', 84, 640],
-  ['right', 1530, 620],
-  ['left', 132, 450],
-  ['right', 1500, 540],
-]
+// Where a drop of ink lands when you write: always the same place, low in the right margin, beside your messages and
+// the box you type in, so it reads as your ink going in. A drop that moved round the margins read as random. It sits
+// no lower than y=650, which a window as wide as 3.5:1 still shows whole.
+const BLOOM_SPOTS: readonly (readonly ['left' | 'right', number, number])[] = [['right', 1470, 650]]
 
 export const BLOOM_COUNT = BLOOM_SPOTS.length
 
@@ -119,8 +111,6 @@ const STYLE = `
 @keyframes sink{0%{opacity:0}5%{opacity:.92}50%{opacity:.85}100%{opacity:0}}
 .w{stroke-dasharray:1;stroke-dashoffset:1;animation:scrawl 9s ease-in-out infinite}
 @keyframes scrawl{0%{stroke-dashoffset:1;opacity:1}30%,70%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
-.gone{animation:fade 2.4s ease-in 1 forwards}
-@keyframes fade{0%{opacity:1}100%{opacity:0}}
 .enter{animation:lift 2.8s ease-out 1 forwards}
 @keyframes lift{0%{opacity:.75}100%{opacity:0}}
 .star{fill:#f6e7c4;opacity:.35;animation:twinkle 6s ease-in-out infinite alternate}
@@ -276,18 +266,19 @@ function bloomAt(index: number, x: number, y: number): string {
   return `<g class="bloom"><circle cx="${x}" cy="${y}" r="96" fill="url(#hx-soak)"/>${veins}<path class="ink core" d="${core}"/><path class="rim core" d="${core}"/>${specks}</g>`
 }
 
-// The other hand: lines of unreadable script in the right margin. They write themselves over and over while
-// Claude replies, then sink into the paper.
-function hand(state: 'on' | 'sinking'): string {
+// The other hand: four lines of unreadable script in the right margin, written one after another while Claude replies.
+// They start right of the lowest candle (1400, 300) and stop above where your drop lands.
+// When the reply ends they simply stop: any last pass drawn then starts over from the first line.
+function hand(): string {
   const rand = rng(57)
   let s = ''
 
-  for (let line = 0; line < 6; line += 1) {
-    const y = 360 + line * 56
-    let d = `M1416 ${y}`
-    let x = 1416
+  for (let line = 0; line < 4; line += 1) {
+    const y = 400 + line * 52
+    let d = `M1444 ${y}`
+    let x = 1444
 
-    while (x < 1560) {
+    while (x < 1572) {
       const step = 9 + rand() * 9
       const up = 6 + rand() * 12
 
@@ -300,12 +291,10 @@ function hand(state: 'on' | 'sinking'): string {
       }
     }
 
-    const delay = state === 'on' ? `animation-delay:${f(line * 1.2)}s` : ''
-
-    s += `<path class="hand${state === 'on' ? ' w' : ''}" pathLength="1" style="${delay}" d="${d}"/>`
+    s += `<path class="hand w" pathLength="1" style="animation-delay:${f(line * 1.2)}s" d="${d}"/>`
   }
 
-  return `<g class="${state === 'sinking' ? 'gone' : ''}">${s}</g>`
+  return `<g>${s}</g>`
 }
 
 // Candles that float, bob and burn, by day and by night; at night a ceiling of faint stars above them.
@@ -397,7 +386,7 @@ function edges(state: SceneState): string {
     '</g>',
     '<g class="edge-r">',
     SEAL,
-    state.writing === undefined ? '' : hand(state.writing),
+    state.writing === undefined ? '' : hand(),
     ink('right'),
     state.dying === true ? fang() : '',
     '</g>',
