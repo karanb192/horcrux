@@ -29,13 +29,13 @@ Open a new session in the desktop app's Code tab, or run `/reload-plugins` in an
 2. **The page.** An old diary page: blank, yellowed, once soaked through and dried, sealed with red wax in the corner. Something small and unseen walks up the margin, one footprint at a time.
 3. **Your ink sinks in.** Each time you write, a drop of ink lands in a margin, creeps out along the paper's fibres and sinks away.
 4. **The other hand writes back.** While Claude replies, lines of script write themselves into the margin. When the reply is done, they sink into the paper too.
-5. **Two hands, two inks.** Your words in blue-black, Claude's in brown-black, both in cursive, straight on the page.
+5. **Two hands, two inks.** Your words in blue-black, Claude's in brown-black, both in cursive, each on its own torn scrap of the page with a corner bitten away. The diary's answers to `/lumos` and `/nox` are written in the same hand.
 6. **Sound, if you want it.** A quiet room with a candle, a nib when you send, a quill stroke for each tool call, a page turning when the conversation compacts, and once in a while an owl, far off. The diary's first reply ends with the opening bars of the films' theme on a celesta-like bell. Off until you press the speaker in the session's title bar.
 7. **Nox.** A basilisk fang stabs through the page, ink bleeds from the wound and runs down the paper, and the diary falls silent.
 
-Code blocks, diffs, permission prompts and questions keep the app's own look, so nothing you need to read carefully ever turns cursive. Your accessibility settings win over the theme.
+Code blocks, diffs, permission prompts and questions keep the app's own look, so nothing you need to read carefully ever turns cursive. Your accessibility settings win over the theme, except on the two drawn answers to `/lumos` and `/nox` (see Limits).
 
-**Mobile app:** the page, the candles and the ink draw there too, under its own veil; the cursive type and the sound are the desktop app's alone.
+**Mobile app:** the page, the candles, the ink and the drawn answers to `/lumos` and `/nox` show there too, under its own veil; the cursive type of messages and the sound are the desktop app's alone.
 
 **Terminal:** terminals draw no themes, so there the spinner and the line that closes each turn speak the diary's words instead: "Dipping the quill…", "Consulting the Pensieve…", "Whispering in Parseltongue…", "Transfigured for 12s". The editor extensions get nothing.
 
@@ -51,7 +51,7 @@ Code blocks, diffs, permission prompts and questions keep the app's own look, so
 | | |
 |---|---|
 | Reads and writes | Its own open/closed setting |
-| Sees | The backdrop, the spinner and the turn line it draws, and the start and end of each turn. Those turn events carry your prompt and Claude's reply; Horcrux only checks whether the turn is the main conversation's, and never reads, keeps or sends either |
+| Sees | The backdrop, the spinner and the turn line it draws, its own answers to `/lumos` and `/nox` where it draws them in its hand, and the start and end of each turn. Those turn events carry your prompt and Claude's reply; Horcrux only checks whether the turn is the main conversation's, and never reads, keeps or sends either |
 | Network | None |
 | Tokens | None. Even `/lumos` and `/nox` answer you alone and never reach the model |
 
@@ -62,6 +62,7 @@ Code blocks, diffs, permission prompts and questions keep the app's own look, so
 - The cursive type and the sound need the Claude desktop app. The cursive is your system's generic cursive font, because the theme API takes generic font families only, so the handwriting looks different on different machines.
 - One theme shows at a time. Another mod that sets a theme replaces this one, and Horcrux never takes it back. `/nox` clears the theme only while it believes the page is its own, but it can only see themes that draw a moving scene: if you picked a plain-colour theme after Horcrux in the same session, `/nox` clears that one too.
 - `/lumos` or `/nox` typed while Claude is working runs when the turn ends.
+- In the desktop and mobile apps the diary's answers to `/lumos` and `/nox` are drawn, because the theme's type can't reach a command's line. You can't select or copy them, and an accessibility font or higher contrast doesn't change them; screen readers still read the words.
 - If you ask your system for reduced motion, the page holds still: no candles bobbing, no footprints, no ink.
 
 ## Credits
