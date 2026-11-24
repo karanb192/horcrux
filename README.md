@@ -8,9 +8,9 @@ A horcrux is a piece of a soul, hidden in an object. This one hides Claude in an
 Write on the page and your ink sinks into the paper; a moment later, a second hand writes back.
 `/lumos` opens the diary. `/nox` closes it, if it starts to scare you.
 
-<img src="assets/demo.gif" alt="A real recording of the Claude desktop app. /lumos lights an old diary page and Tom Riddle greets you. A developer asks whether a print that made a bug go away can stay, ink soaks into the margin, and Claude answers on a torn scrap of parchment. /nox drives a basilisk fang through the page." width="100%">
+https://github.com/user-attachments/assets/6f319df0-64f8-49d9-82d3-9463615648d6
 
-[Watch it with sound](assets/demo.mp4), 18 seconds. The reply's wait is sped up four times; everything else is as the app drew it.
+A real recording of the Claude desktop app, with sound. `/lumos` lights the page and Tom Riddle greets you, a developer asks whether a print that made a bug go away can stay, Claude answers on a torn scrap of parchment, and `/nox` drives a basilisk fang through the page. The reply's wait is sped up four times.
 
 A theme mod for [Claude Code](https://code.claude.com/docs/en/plugins/mods/overview), made for the **Claude desktop app**. It only draws: it adds no tokens to your conversation, makes no network calls and runs no processes.
 
