@@ -277,10 +277,11 @@ function startBloom($: EngineInterface): void {
   blooms += 1
   bloom = blooms % BLOOM_COUNT
   $.ui.invalidate('ui.render')
+  // The drop fades out by itself. Dropping it asks for no redraw: a redraw restarts every animation on the page, and
+  // mid-reply that sent the margin script back to its first line.
   drying = $.clock.after(BLOOM_MS, () => {
     bloom = undefined
     drying = undefined
-    $.ui.invalidate('ui.render')
   })
 }
 

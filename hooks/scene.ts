@@ -60,18 +60,10 @@ function blob(rand: () => number, cx: number, cy: number, r: number, wobble: num
   return `${d}Z`
 }
 
-// Where a drop of ink lands when you write. Every drop sits between y=340 and y=660, which a window as wide as 3.5:1
-// still shows whole.
-const BLOOM_SPOTS: readonly (readonly ['left' | 'right', number, number])[] = [
-  ['left', 96, 380],
-  ['right', 1512, 470],
-  ['left', 120, 560],
-  ['right', 1488, 360],
-  ['left', 84, 640],
-  ['right', 1530, 620],
-  ['left', 132, 450],
-  ['right', 1500, 540],
-]
+// Where a drop of ink lands when you write: always the same place in the left margin, so the eye learns it. A drop
+// that moved round the margins read as random. It sits between y=340 and y=660, which a window as wide as 3.5:1 still
+// shows whole.
+const BLOOM_SPOTS: readonly (readonly ['left' | 'right', number, number])[] = [['left', 108, 470]]
 
 export const BLOOM_COUNT = BLOOM_SPOTS.length
 
@@ -276,8 +268,8 @@ function bloomAt(index: number, x: number, y: number): string {
   return `<g class="bloom"><circle cx="${x}" cy="${y}" r="96" fill="url(#hx-soak)"/>${veins}<path class="ink core" d="${core}"/><path class="rim core" d="${core}"/>${specks}</g>`
 }
 
-// The other hand: lines of unreadable script in the right margin. They write themselves over and over while
-// Claude replies, then sink into the paper.
+// The other hand: lines of unreadable script in the right margin, written one after another while Claude replies.
+// When the reply ends they keep writing as they sink away: drawing them whole there made every line appear at once.
 function hand(state: 'on' | 'sinking'): string {
   const rand = rng(57)
   let s = ''
@@ -300,9 +292,7 @@ function hand(state: 'on' | 'sinking'): string {
       }
     }
 
-    const delay = state === 'on' ? `animation-delay:${f(line * 1.2)}s` : ''
-
-    s += `<path class="hand${state === 'on' ? ' w' : ''}" pathLength="1" style="${delay}" d="${d}"/>`
+    s += `<path class="hand w" pathLength="1" style="animation-delay:${f(line * 1.2)}s" d="${d}"/>`
   }
 
   return `<g class="${state === 'sinking' ? 'gone' : ''}">${s}</g>`

@@ -171,7 +171,10 @@ describe('the ink', () => {
 
     await clock.advance(4000)
 
-    expect(JSON.stringify(await ui.drawn())).not.toContain('class=\\"bloom\\"')
+    // The drop fades by itself and asks for no redraw; the next drawing of the page leaves it out.
+    const later = await $.ui.mount({ plugin: 'horcrux', surface: 'desktop', component: 'Backdrop', props: page })
+
+    expect(JSON.stringify(await later.drawn())).not.toContain('class=\\"bloom\\"')
   })
 
   test('no ink, and no redraws, where no window has drawn the page', async ($, on) => {
@@ -346,7 +349,9 @@ describe('the other hand', () => {
     expect(JSON.stringify(await ui.drawn())).toContain('hand w')
 
     await $.turn.complete({ answer: 'hi', durationMs: 900, isAborted: false, turnId: 't1', reason: 'answer' })
+    // Sinking keeps the lines writing in turn as they fade; none is drawn whole at once.
     expect(JSON.stringify(await ui.drawn())).toContain('class=\\"gone\\"')
+    expect(JSON.stringify(await ui.drawn())).not.toContain('class=\\"hand\\"')
 
     await clock.advance(3000)
     expect(JSON.stringify(await ui.drawn())).not.toContain('class=\\"hand')
