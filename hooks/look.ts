@@ -1,6 +1,7 @@
 import type { ThemeSetArgs } from 'claude-code'
 
 import { makeColors } from './make-colors.js'
+import { sheet } from './paper'
 
 export const PAGE = 'page'
 
@@ -80,12 +81,16 @@ const WRITTEN = { fontFamily: ['cursive'], fontSize: 19, lineHeight: 30 } as con
 export const STYLE: NonNullable<ThemeSetArgs['style']> = {
   Text: WRITTEN,
   Heading: { fontFamily: ['cursive'], fontWeight: 'semibold' },
-  // Your lines lean a little, as a hand does; each message keeps the slant it gets.
+  // Each message is a torn scrap of the page. Your lines lean a little, as a hand does; each message keeps the
+  // scrap and the slant it gets.
   UserMessage: [
-    { color: 'text-user-message', backgroundColor: 'bg-user-message', radius: 3, padding: 14, shadow: 'none', rotate: -0.6 },
-    { color: 'text-user-message', backgroundColor: 'bg-user-message', radius: 3, padding: 14, shadow: 'none', rotate: 0.4 },
+    sheet(11, 'text-user-message', 'bg-user-message', -0.6),
+    sheet(23, 'text-user-message', 'bg-user-message', 0.4),
   ],
-  AssistantMessage: { color: 'text-assistant-message', backgroundColor: 'bg-assistant-message', radius: 3, padding: 10, shadow: 'none' },
+  AssistantMessage: [
+    sheet(37, 'text-assistant-message', 'bg-assistant-message'),
+    sheet(41, 'text-assistant-message', 'bg-assistant-message'),
+  ],
 }
 
 type Sound = ThemeSetArgs extends { sound?: infer Known } ? NonNullable<Known> : never

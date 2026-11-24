@@ -1,6 +1,7 @@
 import type { EngineInterface, Register, ThemeResult } from 'claude-code'
 
 import { COLOR_PROBLEMS, PAGE, lookFor } from './look'
+import { handwriting } from './hand'
 import { BLOOM_COUNT, scene } from './scene'
 import type { SceneState } from './scene'
 
@@ -415,6 +416,26 @@ export const register: Register = on => {
         source={scene({ bloom, writing, entering, dying })}
       />
     )
+  })
+
+  // The diary's answers to /lumos and /nox, in its own hand where a window can draw it; the terminal keeps the words.
+  on('ui.render', { component: 'CommandOutput' }, ($, e, next) => {
+    const command = e.props.command.replace(`${PLUGIN}:`, '')
+    const text = e.props.text.replace(`${PLUGIN}: `, '')
+
+    if (
+      (e.surface !== 'desktop' && e.surface !== 'mobile') ||
+      e.props.isErrored ||
+      (command !== OPEN && command !== CLOSE) ||
+      !/^(Lumos|Nox)\./.test(text)
+    ) {
+      return next(e)
+    }
+
+    const { Svg } = $.ui.resolve(e)
+    const hand = handwriting(text)
+
+    return <Svg alt={text} source={hand.source} width={hand.width} height={hand.height} />
   })
 
   on('ui.render', { component: 'Spinner' }, async ($, e, next) => {

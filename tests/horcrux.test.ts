@@ -1,7 +1,9 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
 import type { CommandRunInput, On, RenderElement, SessionStartInput, ThemeSetArgs } from 'claude-code'
 
-import { lookFor } from '../hooks/look'
+import { handwriting, lines } from '../hooks/hand'
+import { STYLE, lookFor } from '../hooks/look'
+import { tornPaper } from '../hooks/paper'
 import { WRITING, WRITTEN, pick } from '../hooks/register'
 import { BLOOM_COUNT, bloomSpots, edgeShift, scene, visibleBox } from '../hooks/scene'
 
@@ -442,5 +444,78 @@ describe('the scene', () => {
   test('one spinner word always maps to the same diary word', () => {
     expect(pick(WRITING, 'Sauteing')).toBe(pick(WRITING, 'Sauteing'))
     expect(WRITING).toContain(pick(WRITING, 'Sauteing'))
+  })
+})
+
+describe('the diary in its own hand', () => {
+  const said = (command: string, text: string, isErrored = false) =>
+    ({ plugin: 'horcrux', surface: 'desktop', component: 'CommandOutput', props: { command, args: '', text, isErrored } }) as const
+
+  test('/lumos and /nox answer in a drawn hand on the desktop, with the words kept as alt text', async ($, on) => {
+    mock.clock(on)
+    engine(on, [])
+    on('ui.render', { component: 'CommandOutput' }, () => BLANK)
+    await $.session.start(start)
+
+    const greeting = 'Lumos. Hello. My name is Tom Riddle. How did you come by my diary?'
+    const drawn = JSON.stringify(await (await $.ui.mount(said('lumos', greeting))).drawn())
+
+    expect(drawn).toContain('font-family:cursive')
+    expect(drawn).toContain(`"alt":"${greeting}"`)
+    expect(drawn).toContain('My name is Tom Riddle.')
+  })
+
+  test('the terminal, other commands and error lines keep the plain row', async ($, on) => {
+    mock.clock(on)
+    engine(on, [])
+    on('ui.render', { component: 'CommandOutput' }, () => BLANK)
+    await $.session.start(start)
+
+    const nox = 'Nox. The diary falls silent. /lumos opens it again.'
+    const rows = [
+      { ...said('nox', nox), surface: 'terminal' as const },
+      said('cost', 'Nox. not ours'),
+      said('nox', 'horcrux: Error: boom'),
+      said('nox', nox, true),
+    ]
+
+    for (const row of rows) {
+      const drawn = JSON.stringify(await (await $.ui.mount(row)).drawn())
+
+      expect(drawn).toContain('"type":"Box"')
+      expect(drawn).not.toContain('cursive')
+    }
+  })
+
+  test('the hand breaks lines at spaces and escapes what it writes', () => {
+    const text = 'Nox. A fang through the page, and the diary falls silent. /lumos opens it again.'
+
+    expect(lines(text).join(' ')).toBe(text)
+    for (const line of lines(text)) expect(line.length).toBeLessThanOrEqual(54)
+    expect(handwriting('Nox. <b> & </b>').source).toContain('&lt;b&gt; &amp; &lt;/b&gt;')
+  })
+
+  test('every torn sheet tiles without a step and stays inside the engine limits', () => {
+    for (const seed of [11, 23, 37, 41]) {
+      const sheet = tornPaper(seed, 'bg-user-message')
+
+      expect(sheet.slice).toBeLessThanOrEqual(48)
+      expect(sheet.paths.length).toBeLessThanOrEqual(64)
+
+      for (const path of sheet.paths) {
+        const d = typeof path === 'string' ? path : path.d
+
+        expect(d.length).toBeLessThanOrEqual(16384)
+        expect(d).not.toContain('NaN')
+
+        // Top edge points at the two seams (x 12 and x 60) sit at the same depth.
+        const ys = new Map(d.split('Z')[0]!.slice(1).split('L').map(point => point.split(' ').map(Number) as [number, number]))
+
+        expect(ys.get(12)).toBe(ys.get(60))
+      }
+    }
+
+    expect(STYLE.UserMessage).toHaveLength(2)
+    expect(STYLE.AssistantMessage).toHaveLength(2)
   })
 })
